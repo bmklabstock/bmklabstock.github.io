@@ -599,8 +599,20 @@ function gisLoaded() {
   maybeReady();
 }
 
+// Guardamos el hint de cuenta (email) para que Google pre-seleccione sin popup
+const LS_HINT = 'labstock_login_hint';
+function saveHint(email) { try { localStorage.setItem(LS_HINT, email); } catch(e) {} }
+function loadHint() { try { return localStorage.getItem(LS_HINT) || ''; } catch(e) { return ''; } }
+function clearHint() { try { localStorage.removeItem(LS_HINT); } catch(e) {} }
+
 function maybeReady() {
-  if (gapiReady && gisReady) {
+  if (!gapiReady || !gisReady) return;
+  const hint = loadHint();
+  if (hint) {
+    // Ya se logueó antes: intentar obtener token sin popup
+    setLoginStatus('Conectando…');
+    tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+  } else {
     document.getElementById('login-status').textContent = 'Listo para conectar';
   }
 }
@@ -612,11 +624,10 @@ function handleLogin() {
     return;
   }
   setLoginStatus('Iniciando sesión…');
-  if (gapi.client.getToken() === null) {
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-  } else {
-    tokenClient.requestAccessToken({ prompt: '' });
-  }
+  const hint = loadHint();
+  // Si hay hint usamos prompt:'' para evitar el popup de seleccion de cuenta
+  // Si no hay hint (primera vez) usamos 'consent' para el flujo completo
+  tokenClient.requestAccessToken({ prompt: hint ? '' : 'consent', login_hint: hint });
 }
 
 function handleLogout() {
@@ -625,10 +636,12 @@ function handleLogout() {
     google.accounts.oauth2.revoke(token.access_token);
     gapi.client.setToken('');
   }
+  clearHint();
   stock = [];
   sheetNames = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  setLoginStatus('Sesión cerrada');
 }
 
 async function afterLogin() {
@@ -638,6 +651,7 @@ async function afterLogin() {
       headers: { Authorization: 'Bearer ' + gapi.client.getToken().access_token }
     });
     const info = await resp.json();
+    if (info.email) saveHint(info.email); // guardar para login sin popup
     document.getElementById('user-name').textContent = info.name || 'Usuario';
     document.getElementById('user-email').textContent = info.email || '';
     const wrap = document.getElementById('user-avatar-wrap');
