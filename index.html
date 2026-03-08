@@ -234,9 +234,20 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
   <div class="login-box">
     <div class="login-logo">🧪 LabStock</div>
     <div class="login-sub">Gestión de Insumos de Laboratorio</div>
-    <button class="btn-google" onclick="handleLogin()">
-      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-      Iniciar sesión con Google
+
+    <!-- Chip de cuenta recordada (se muestra solo si hay cuenta guardada) -->
+    <div id="remembered-chip" style="display:none;margin-bottom:16px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;display:none;align-items:center;gap:10px;text-align:left">
+      <div id="remembered-avatar" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6b3fa0,#9b6dd0);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div id="remembered-name" style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div id="remembered-email" style="font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+      <button onclick="forgetAccount()" title="Olvidar cuenta" style="background:none;border:none;cursor:pointer;color:var(--dim);font-size:16px;padding:2px 4px;line-height:1;flex-shrink:0" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--dim)'">×</button>
+    </div>
+
+    <button class="btn-google" id="btn-login" onclick="handleLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      <span id="btn-login-text">Iniciar sesión con Google</span>
     </button>
     <div class="login-note">Solo usuarios autorizados del laboratorio</div>
     <div id="login-status"></div>
@@ -535,24 +546,6 @@ let gisReady  = false;
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE IDENTITY / AUTH
 // ═══════════════════════════════════════════════════════════════
-// ── Caché de perfil de usuario (nombre, email, foto) ────────────
-// El token de Google dura solo ~1 hora, no vale la pena guardarlo.
-// Sí guardamos el perfil para mostrarlo rápido, y usamos
-// prompt:'select_account' / '' para que Google no pida popup
-// si el usuario ya autorizó la app en este navegador.
-const LS_USER = 'labstock_user';
-
-function saveUserCache(info) {
-  try { localStorage.setItem(LS_USER, JSON.stringify(info)); } catch(e) {}
-}
-function loadUserCache() {
-  try { const r = localStorage.getItem(LS_USER); return r ? JSON.parse(r) : null; } catch(e) { return null; }
-}
-function clearUserCache() {
-  try { localStorage.removeItem(LS_USER); } catch(e) {}
-}
-// ────────────────────────────────────────────────────────────────
-
 function gapiLoaded() {
   gapi.load('client', async () => {
     await gapi.client.init({ discoveryDocs: [DISCOVERY] });
@@ -567,9 +560,7 @@ function gisLoaded() {
     scope: SCOPES,
     callback: async (resp) => {
       if (resp.error) {
-        // 'access_denied' o error real → mostrar botón
         setLoginStatus('Error al autenticar: ' + resp.error, true);
-        document.getElementById('login-screen').style.display = 'flex';
         return;
       }
       await afterLogin();
@@ -579,19 +570,43 @@ function gisLoaded() {
   maybeReady();
 }
 
-function maybeReady() {
-  if (!gapiReady || !gisReady) return;
+// ── Cuenta recordada ─────────────────────────────────────────────
+const LS_USER = 'labstock_remembered_user';
 
-  // Si hay perfil cacheado, intentar obtener token silenciosamente (sin popup).
-  // Google lo concede sin interacción si la sesión del navegador sigue activa
-  // y el usuario ya autorizó la app antes.
-  const cached = loadUserCache();
-  if (cached) {
-    setLoginStatus('Conectando…');
-    // prompt:'' = sin UI, falla si no puede renovar silenciosamente
-    tokenClient.requestAccessToken({ prompt: '' });
-    // El callback de tokenClient maneja éxito y error
+function saveRemembered(info) {
+  try { localStorage.setItem(LS_USER, JSON.stringify({ name: info.name, email: info.email, picture: info.picture })); } catch(e) {}
+}
+function loadRemembered() {
+  try { const r = localStorage.getItem(LS_USER); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+}
+function forgetAccount() {
+  try { localStorage.removeItem(LS_USER); } catch(e) {}
+  document.getElementById('remembered-chip').style.display = 'none';
+  document.getElementById('btn-login-text').textContent = 'Iniciar sesión con Google';
+  setLoginStatus('');
+}
+function renderRememberedChip() {
+  const u = loadRemembered();
+  const chip = document.getElementById('remembered-chip');
+  if (!u) { chip.style.display = 'none'; return; }
+  // Mostrar chip
+  chip.style.display = 'flex';
+  document.getElementById('remembered-name').textContent = u.name || '';
+  document.getElementById('remembered-email').textContent = u.email || '';
+  const av = document.getElementById('remembered-avatar');
+  if (u.picture) {
+    av.innerHTML = `<img src="${u.picture}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" referrerpolicy="no-referrer">`;
   } else {
+    av.textContent = (u.name||'U').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  }
+  // Cambiar texto del botón
+  document.getElementById('btn-login-text').textContent = 'Continuar como ' + (u.name?.split(' ')[0] || u.email);
+}
+// ─────────────────────────────────────────────────────────────────
+
+function maybeReady() {
+  if (gapiReady && gisReady) {
+    renderRememberedChip();
     setLoginStatus('Listo para conectar');
   }
 }
@@ -602,8 +617,12 @@ function handleLogin() {
     setTimeout(handleLogin, 800);
     return;
   }
-  // prompt:'select_account' muestra el selector de cuenta de Google (sin pedir permisos extra si ya autorizó)
-  tokenClient.requestAccessToken({ prompt: 'select_account' });
+  const remembered = loadRemembered();
+  setLoginStatus('Abriendo sesión de Google…');
+  // Si hay cuenta recordada usamos prompt:'select_account' para que Google
+  // pre-seleccione esa cuenta en el popup (un click menos).
+  // Si no hay cuenta recordada, prompt:'consent' para flujo normal.
+  tokenClient.requestAccessToken({ prompt: remembered ? 'select_account' : 'consent' });
 }
 
 function handleLogout() {
@@ -612,12 +631,12 @@ function handleLogout() {
     google.accounts.oauth2.revoke(token.access_token);
     gapi.client.setToken('');
   }
-  clearUserCache();
   stock = [];
   sheetNames = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  setLoginStatus('Sesión cerrada — hacé clic para volver a entrar');
+  renderRememberedChip();
+  setLoginStatus('Sesión cerrada');
 }
 
 async function afterLogin() {
@@ -627,7 +646,9 @@ async function afterLogin() {
     });
     if (!resp.ok) throw new Error('token invalido');
     const info = await resp.json();
-    saveUserCache(info);
+
+    // Guardar para la próxima vez
+    saveRemembered(info);
 
     document.getElementById('user-name').textContent = info.name || 'Usuario';
     document.getElementById('user-email').textContent = info.email || '';
@@ -643,11 +664,8 @@ async function afterLogin() {
     document.getElementById('app').style.display = 'block';
     await syncFromSheets();
   } catch(e) {
-    // Token inválido o red caída → volver a pantalla de login limpia
-    clearUserCache();
     gapi.client.setToken('');
-    document.getElementById('login-screen').style.display = 'flex';
-    setLoginStatus('No se pudo conectar — intentá de nuevo', true);
+    setLoginStatus('Error al conectar — intentá de nuevo', true);
   }
 }
 
