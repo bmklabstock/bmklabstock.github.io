@@ -518,6 +518,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
         <button class="barcode-btn-clear" onclick="clearBarcode()">Limpiar</button>
       </div>
       <div class="barcode-status idle" id="barcode-status">Listo - escana un codigo para autocompletar</div>
+      <div id="gs1-debug" style="display:none;margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);background:var(--surface2);border:1px solid var(--border2);border-radius:5px;padding:8px 12px;line-height:1.8"></div>
     </div>
   </div>
   <div class="card">
@@ -2229,10 +2230,8 @@ function onBarcodeKeyBaja(e) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// GS1-128 PARSER
+// GS1-128 PARSER — v2 con lookahead para campos variables sin FNC1
 // ═══════════════════════════════════════════════════════════════
-// Application Identifiers (AI) con longitudes fijas o variables
-// Variables terminan en FNC1 (en texto plano, separadas por posición)
 const GS1_AI = {
   '00': { name:'sscc',       len:18, fixed:true  },
   '01': { name:'gtin',       len:14, fixed:true  },
@@ -2250,11 +2249,27 @@ const GS1_AI = {
   '37': { name:'qtyUnits',   len:8,  fixed:false },
 };
 
+// All known AI prefixes sorted longest-first for matching
+const GS1_AI_KEYS = Object.keys(GS1_AI).sort((a,b) => b.length - a.length);
+
 // Separadores que algunas pistolas insertan entre campos variables
 const GS1_SEPARATORS = ['\x1d', '|', '\x1c'];
 
+// Find next known AI position starting after `from`, within `maxLen` chars
+// currentAI: skip this AI to avoid false positives inside variable data
+function findNextAI(s, from, maxLen, currentAI) {
+  const end = Math.min(from + maxLen, s.length);
+  for (let j = from + 1; j <= end - 2; j++) {
+    for (const k of GS1_AI_KEYS) {
+      if (k === currentAI) continue; // don't stop at same AI type (avoids "10" in lot data)
+      if (s.substring(j, j + k.length) === k) return j;
+    }
+  }
+  return -1;
+}
+
 function parseGS1(code) {
-  // Normalize: remove common separators keeping structure
+  // Normalize separators
   let s = code;
   for (const sep of GS1_SEPARATORS) s = s.split(sep).join('\x1d');
 
@@ -2262,45 +2277,45 @@ function parseGS1(code) {
   let i = 0;
 
   while (i < s.length) {
-    // Skip FNC1 separators
     if (s[i] === '\x1d') { i++; continue; }
 
     // Try 3-digit AI first, then 2-digit
     let ai = null, def = null;
-    if (GS1_AI[s.substring(i, i+3)]) {
-      ai = s.substring(i, i+3); def = GS1_AI[ai]; i += 3;
-    } else if (GS1_AI[s.substring(i, i+2)]) {
-      ai = s.substring(i, i+2); def = GS1_AI[ai]; i += 2;
-    } else {
-      i++; continue; // unknown AI, skip char
+    for (const k of GS1_AI_KEYS) {
+      if (s.substring(i, i + k.length) === k) {
+        ai = k; def = GS1_AI[k]; i += k.length; break;
+      }
     }
+    if (!ai) { i++; continue; }
 
     let value;
     if (def.fixed) {
       value = s.substring(i, i + def.len);
       i += def.len;
     } else {
-      // Variable: read until FNC1 separator or end, max def.len chars
-      const end = s.indexOf('\x1d', i);
-      const maxEnd = i + def.len;
-      const stopAt = end === -1 ? maxEnd : Math.min(end, maxEnd);
-      value = s.substring(i, stopAt);
+      // Variable: stop at FNC1, next known AI, or maxLen — whichever comes first
+      const fnc1Pos = s.indexOf('\x1d', i);
+      const maxEnd  = i + def.len;
+      // Look for next AI within the variable field range (excluding current AI)
+      const nextAIPos = findNextAI(s, i, def.len, ai);
+      let stopAt = maxEnd;
+      if (fnc1Pos !== -1 && fnc1Pos < stopAt) stopAt = fnc1Pos;
+      if (nextAIPos !== -1 && nextAIPos < stopAt) stopAt = nextAIPos;
+      value = s.substring(i, stopAt).toUpperCase().trim();
       i = stopAt;
     }
-    result[def.name] = value;
+    if (value) result[def.name] = value;
   }
   return result;
 }
 
 function gs1ExpToISO(yymmdd) {
-  // YYMMDD → YYYY-MM-DD. DD=00 means last day of month
   if (!yymmdd || yymmdd.length !== 6) return '';
   const yy = parseInt(yymmdd.substring(0,2));
   const mm = yymmdd.substring(2,4);
   const dd = yymmdd.substring(4,6);
   const year = yy <= 30 ? 2000 + yy : 1900 + yy;
   if (dd === '00') {
-    // Last day of month
     const lastDay = new Date(year, parseInt(mm), 0).getDate();
     return `${year}-${mm}-${String(lastDay).padStart(2,'0')}`;
   }
@@ -2308,11 +2323,37 @@ function gs1ExpToISO(yymmdd) {
 }
 
 function extractCatalog(parsed) {
-  // REF (AI 240) is the most direct catalog number
   if (parsed.ref) return parsed.ref.trim();
-  // Otherwise strip GTIN packaging indicator + check digit → inner product code
   if (parsed.gtin) return parsed.gtin.substring(1, 13).replace(/^0+/, '') || parsed.gtin;
   return '';
+}
+
+// ── Stock lookup: busca por catálogo, lote exacto, o substring del lote ──
+function lookupInStock(catalogStr, loteStr, rawCode) {
+  const catLow  = (catalogStr || '').toLowerCase().replace(/[\s.-]/g,'');
+  const loteLow = (loteStr    || '').toLowerCase().replace(/\s+/g,'');
+  const codeLow = rawCode.toLowerCase();
+
+  // 1. Exact catalog match (normalizing dots/spaces)
+  let m = catLow ? stock.find(i =>
+    i.catalogo.toLowerCase().replace(/[\s.-]/g,'') === catLow
+  ) : null;
+
+  // 2. Lot substring match (lote escaneado contenido en lote del stock o viceversa)
+  if (!m && loteLow.length >= 6) {
+    m = stock.find(i => {
+      const sl = i.lote.toLowerCase().replace(/\s+[a-zñ]{1,3}$/, '').replace(/\s+/g,'');
+      return sl === loteLow || sl.includes(loteLow) || loteLow.includes(sl);
+    });
+  }
+
+  // 3. Raw code as catalog or lot
+  if (!m) {
+    m = stock.find(i => i.catalogo.toLowerCase().replace(/[\s.-]/g,'') === codeLow.replace(/[\s.-]/g,'')) ||
+        stock.find(i => i.lote.toLowerCase().replace(/\s+/g,'') === codeLow) ||
+        stock.find(i => codeLow.includes(i.lote.toLowerCase().replace(/\s+[a-zñ]{1,3}$/, '').replace(/\s+/g,'')));
+  }
+  return m || null;
 }
 
 function processBarcodeCode(code, context = 'alta') {
@@ -2331,25 +2372,12 @@ function processBarcodeCode(code, context = 'alta') {
   if (rawCode.length > 10) {
     parsed = parseGS1(rawCode);
     catalogFromGS1 = extractCatalog(parsed);
-    loteFromGS1    = (parsed.lot    || '').trim();
+    loteFromGS1    = (parsed.lot || '').trim().toUpperCase();
     vencFromGS1    = gs1ExpToISO(parsed.expDate || parsed.bestBefore || '');
   }
 
-  // ── 2. Look up in stock (by catalog from GS1, then raw code) ──
-  const codeLow = rawCode.toLowerCase();
-  const catLow  = catalogFromGS1.toLowerCase();
-
-  let match = null;
-  if (catLow) {
-    match = stock.find(i => i.catalogo.toLowerCase() === catLow);
-  }
-  if (!match) {
-    match =
-      stock.find(i => i.catalogo.toLowerCase() === codeLow) ||
-      stock.find(i => i.lote.toLowerCase().replace(/\s+[a-zñ]{1,3}$/,'') === codeLow) ||
-      stock.find(i => i.lote.toLowerCase() === codeLow) ||
-      stock.find(i => i.catalogo.toLowerCase().includes(codeLow));
-  }
+  // ── 2. Look up in stock ──────────────────────────────────
+  const match = lookupInStock(catalogFromGS1, loteFromGS1, rawCode);
 
   // ── 3. Fill fields depending on context ──────────────────
   if (context === 'alta') {
@@ -2375,40 +2403,51 @@ function processBarcodeCode(code, context = 'alta') {
     // Name & temp from stock match
     if (match) {
       if (!nombreEl.value.trim()) { nombreEl.value = match.nombre; flashFill('alta-nombre'); }
-      if (!loteEl.value.trim())   { loteEl.value = match.lote.replace(/\s+[A-ZÑ]{1,3}$/,'').trim(); flashFill('alta-lote'); }
+      if (!loteEl.value.trim())   { loteEl.value = loteFromGS1 || match.lote.replace(/\s+[A-ZÑ]{1,3}$/,'').trim(); flashFill('alta-lote'); }
       inferAndSetTemp(match.catalogo, match.tempAlmacen);
     }
 
     // Status message
     const parts = [];
+    if (match)          parts.push(`✓ ${match.nombre}`);
     if (catalogFromGS1) parts.push(`Cat: ${catalogFromGS1}`);
     if (loteFromGS1)    parts.push(`Lote: ${loteFromGS1}`);
-    if (vencFromGS1)    parts.push(`Vence: ${vencFromGS1}`);
-    if (match) parts.push(`Nombre: ${match.nombre}`);
+    if (vencFromGS1)    parts.push(`Vence: ${gs1ExpToISO(parsed.expDate||parsed.bestBefore||'').replace(/(\d{4})-(\d{2})-(\d{2})/,'$3/$2/$1')}`);
+    if (!match && parsed.serial) parts.push(`Serie: ${parsed.serial}`);
 
     if (statusEl) {
       statusEl.className = 'barcode-status ' + (parts.length ? 'found' : 'notfound');
       statusEl.textContent = parts.length
-        ? '✓ ' + parts.join('  ·  ')
+        ? parts.join('  ·  ')
         : 'Código no reconocido — completá manualmente';
     }
-    if (parts.length) toast('QR leído: ' + (match ? match.nombre : finalCat), 'success');
+    if (parts.length) toast('QR leído: ' + (match ? match.nombre : (catalogFromGS1||rawCode.substring(0,20))), 'success');
     else toast('Código no encontrado en stock', 'info');
+
+    // Show GS1 debug detail
+    const dbg = document.getElementById('gs1-debug');
+    if (dbg) {
+      const aiNames = {'gtin':'GTIN(01)','expDate':'Venc(17)','lot':'Lote(10)','serial':'Serie(21)','ref':'REF(240)','bestBefore':'BB(15)'};
+      const dbgParts = Object.entries(parsed).map(([k,v]) => `<b>${aiNames[k]||k}</b>: ${v}`);
+      if (dbgParts.length) { dbg.style.display='block'; dbg.innerHTML = 'GS1 detectado → ' + dbgParts.join(' &nbsp;&nbsp; '); }
+      else dbg.style.display='none';
+    }
 
     updatePreview();
 
   } else {
-    // context === 'baja': trigger search with catalog or lot
+    // context === 'baja'
     const searchTerm = loteFromGS1 || catalogFromGS1 || rawCode;
     const searchEl = document.getElementById('baja-search-input');
     if (searchEl) { searchEl.value = searchTerm; buscarBaja(); }
 
     if (statusEl) {
       const parts = [];
+      if (match)          parts.push(`✓ ${match.nombre}`);
       if (catalogFromGS1) parts.push(`Cat: ${catalogFromGS1}`);
       if (loteFromGS1)    parts.push(`Lote: ${loteFromGS1}`);
       statusEl.className = 'barcode-status ' + (parts.length ? 'found' : 'notfound');
-      statusEl.textContent = parts.length ? '✓ ' + parts.join('  ·  ') + ' — resultados abajo' : 'Código no reconocido';
+      statusEl.textContent = parts.length ? parts.join('  ·  ') + ' — resultados abajo' : 'Código no reconocido';
     }
     if (loteFromGS1 || catalogFromGS1)
       toast('QR leído — buscando ' + (loteFromGS1 || catalogFromGS1), 'success');
@@ -2421,6 +2460,7 @@ function clearBarcode(context='alta') {
   const el = document.getElementById(inputId); if (el) el.value = '';
   const st = document.getElementById(statusId);
   if (st) { st.className='barcode-status idle'; st.textContent='Listo - escana un codigo para autocompletar'; }
+  const dbg = document.getElementById('gs1-debug'); if(dbg) dbg.style.display='none';
 }
 
 const _showPage = showPage;
