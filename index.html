@@ -904,11 +904,14 @@ function setSyncState(state, label) {
 // ═══════════════════════════════════════════════════════════════
 // SHEETS API — WRITE (Alta)
 // ═══════════════════════════════════════════════════════════════
+const _sheetIdCache = {};
 async function getSheetId(sheetName) {
+  if (_sheetIdCache[sheetName] !== undefined) return _sheetIdCache[sheetName];
   const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-  const sheet = meta.result.sheets.find(s => s.properties.title === sheetName);
-  return sheet ? sheet.properties.sheetId : null;
+  meta.result.sheets.forEach(s => { _sheetIdCache[s.properties.title] = s.properties.sheetId; });
+  return _sheetIdCache[sheetName] ?? null;
 }
+function invalidateSheetIdCache() { Object.keys(_sheetIdCache).forEach(k => delete _sheetIdCache[k]); }
 
 async function writeRowsToSheet(sheetName, rows, catalogo) {
   // Read cols B (fecha) and D (catalogo) to find insertion point
@@ -1022,6 +1025,7 @@ async function ensureSheetExists(year) {
 
   sheetNames.push(year);
   sheetNames.sort();
+  invalidateSheetIdCache(); // new sheet added
   return true;
 }
 
@@ -1056,7 +1060,7 @@ function getAnios() { return [...new Set(stock.map(getAnio))].sort(); }
 function getEstado(item) {
   // Considerar dado de baja si tiene fecha de fin o "NA"
   const fin = (item.finConsumo || '').trim();
-  if (fin && fin.toUpperCase() !== '') return 'baja';
+  if (fin) return 'baja';
   if (!item.vencimiento) return 'disponible';
   // Parsear DD/MM/YYYY o YYYY-MM-DD
   let venceDate;
@@ -1732,7 +1736,7 @@ async function confirmarEliminar() {
   const n = consultaSelected.size;
   if (!n) return;
   const nombres = [...consultaSelected].map(id => stock.find(x=>x.id===id)?.nombre || '').join(', ');
-  if (!confirm(`¿Eliminár ${n} insumo${n>1?'s':''}?
+  if (!confirm(`¿Eliminar ${n} insumo${n>1?'s':''}?
 
 ${nombres}
 
