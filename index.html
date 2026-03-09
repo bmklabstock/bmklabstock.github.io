@@ -842,7 +842,9 @@ function buildColMap(headerRow) {
 // STATE
 // ═══════════════════════════════════════════════════════════════
 let stock         = [];       // [{id, sheetName, rowIndex, fecha, nombre, ...}]
+let stockLookup   = [];       // igual que stock pero sin hojas excluidas (2022, 2023)
 let sheetNames    = [];       // ['2024','2025',...]
+const LOOKUP_EXCLUDE_YEARS = ['2022','2023']; // hojas con datos corruptos, excluidas del lookup
 let nextLocalId   = 1;
 let bajaSelectedId = null;
 let consultaFilter = 'todos';
@@ -953,6 +955,7 @@ function handleLogout() {
   clearToken();
   clearHint();
   stock = [];
+  stockLookup = [];
   sheetNames = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
@@ -1036,6 +1039,7 @@ async function syncFromSheets() {
     const ranges = sheetNames.map(y => ['2022','2023'].includes(y) ? `${y}!A:J` : `${y}!B:K`);
     if (!ranges.length) {
       stock = [];
+      stockLookup = [];
       setSyncState('ok', 'Sin datos');
       renderAll();
       return;
@@ -1074,6 +1078,9 @@ async function syncFromSheets() {
         });
       });
     });
+
+    // stockLookup excluye hojas con datos corruptos (2022, 2023) para búsquedas por escáner
+    stockLookup = stock.filter(i => !LOOKUP_EXCLUDE_YEARS.includes(i.sheetName));
 
     // Default: mostrar el año más reciente en Consultas
     // consultaYear permanece en 'todos' por defecto
@@ -1227,7 +1234,12 @@ async function ensureSheetExists(year) {
 async function updateRowInSheet(item) {
   // rowIndex is stored as rowIdx+1 where rowIdx skips the header → it IS the 1-based sheet row
   const sheetRow = item.rowIndex;
-  const range = `${item.sheetName}!G${sheetRow}:K${sheetRow}`;
+  // 2022/2023 no tienen checkbox en col A → datos empiezan en col A (F=InicioConsumo, G=FinConsumo, H=Temp, I=Rend, J=Obs)
+  // 2024+ tienen checkbox en col A → datos empiezan en col B (G=InicioConsumo, H=FinConsumo, I=Temp, J=Rend, K=Obs)
+  const legacy = ['2022','2023'].includes(item.sheetName);
+  const startCol = legacy ? 'F' : 'G';
+  const endCol   = legacy ? 'J' : 'K';
+  const range = `${item.sheetName}!${startCol}${sheetRow}:${endCol}${sheetRow}`;
   await gapi.client.sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
     range,
@@ -1636,6 +1648,12 @@ async function confirmarAlta() {
 
 function limpiarAlta() {
   ['alta-nombre','alta-catalogo','alta-lote','alta-vencimiento'].forEach(id=>{ const e=document.getElementById(id); if(e){e.value='';e.disabled=false;} });
+  const st = document.getElementById('barcode-status');
+  if (st) { st.className='barcode-status idle'; st.textContent='Listo - escaneá un código para autocompletar'; }
+  const bci = document.getElementById('barcode-input'); if(bci) bci.value='';
+  const dbg = document.getElementById('gs1-debug'); if(dbg) dbg.style.display='none';
+  const cw = document.getElementById('cat-no-detected-warn'); if(cw) cw.style.display='none';
+  ['tag-nombre','tag-catalogo','tag-lote'].forEach(id=>{ const t=document.getElementById(id); if(t) t.style.display='none'; });
   const chkSV = document.getElementById('chk-sin-venc'); if(chkSV) chkSV.checked=false;
   document.getElementById('alta-cantidad').value=1;
   document.getElementById('alta-temp').selectedIndex=0;
@@ -2064,14 +2082,22 @@ async function guardarModificacion() {
   toast('Guardando…', 'info');
   try {
     const sheetRow = item.rowIndex;
+    // 2022/2023: sin checkbox → datos desde col A. 2024+: datos desde col B
+    const legacySheet = ['2022','2023'].includes(item.sheetName);
+    const writeRange = legacySheet
+      ? `${item.sheetName}!A${sheetRow}:J${sheetRow}`
+      : `${item.sheetName}!B${sheetRow}:K${sheetRow}`;
+    // 2022/2023 no tienen col de checkbox — la fila empieza directo con Fecha
+    const writeValues = legacySheet
+      ? [item.fecha, item.nombre, item.catalogo, item.lote, item.vencimiento,
+         item.inicioConsumo, item.finConsumo, item.tempAlmacen, item.rendimiento, item.obs]
+      : [item.fecha, item.nombre, item.catalogo, item.lote, item.vencimiento,
+         item.inicioConsumo, item.finConsumo, item.tempAlmacen, item.rendimiento, item.obs];
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${item.sheetName}!B${sheetRow}:K${sheetRow}`,
+      range: writeRange,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[
-        item.fecha, item.nombre, item.catalogo, item.lote, item.vencimiento,
-        item.inicioConsumo, item.finConsumo, item.tempAlmacen, item.rendimiento, item.obs
-      ]] }
+      resource: { values: [writeValues] }
     });
     toast('✓ Insumo modificado correctamente', 'success');
     await writeLog('Modificación', item,
@@ -2323,35 +2349,57 @@ function gs1ExpToISO(yymmdd) {
 }
 
 function extractCatalog(parsed) {
+  // Solo AI 240 (ref) es el N° de catálogo del fabricante.
+  // El GTIN (AI 01) identifica el producto globalmente pero NO es el N° de catálogo
+  // que figura en la planilla de stock — nunca usarlo como catálogo.
   if (parsed.ref) return parsed.ref.trim();
-  if (parsed.gtin) return parsed.gtin.substring(1, 13).replace(/^0+/, '') || parsed.gtin;
   return '';
 }
 
 // ── Stock lookup: busca por catálogo, lote exacto, o substring del lote ──
-function lookupInStock(catalogStr, loteStr, rawCode) {
+// Elimina prefijos GS1 del tipo (10), (240), (01), etc. de un valor guardado en la planilla
+function stripAI(str) {
+  if (!str) return '';
+  return str.replace(/^\(\d{2,3}\)\s*/g, '').trim();
+}
+
+function lookupInStock(catalogStr, loteStr, rawCode, isGS1 = false) {
   const catLow  = (catalogStr || '').toLowerCase().replace(/[\s.-]/g,'');
   const loteLow = (loteStr    || '').toLowerCase().replace(/\s+/g,'');
   const codeLow = rawCode.toLowerCase();
 
-  // 1. Exact catalog match (normalizing dots/spaces)
-  let m = catLow ? stock.find(i =>
-    i.catalogo.toLowerCase().replace(/[\s.-]/g,'') === catLow
-  ) : null;
+  // Usar stockLookup (excluye 2022 y 2023 con datos corruptos)
+  const src = stockLookup.length ? stockLookup : stock;
 
-  // 2. Lot substring match (lote escaneado contenido en lote del stock o viceversa)
-  if (!m && loteLow.length >= 6) {
-    m = stock.find(i => {
-      const sl = i.lote.toLowerCase().replace(/\s+[a-zñ]{1,3}$/, '').replace(/\s+/g,'');
+  // Normalización que limpia AI prefix del lado del STOCK (datos históricos sucios)
+  const normCat  = v => stripAI(v).toLowerCase().replace(/[\s.-]/g,'');
+  const normLote = v => stripAI(v).replace(/\s+[a-zñ]{1,3}$/i,'').toLowerCase().replace(/\s+/g,'');
+
+  // 1. Exact catalog match (solo si GS1 detectó un catálogo via AI 240)
+  let m = catLow ? src.find(i => normCat(i.catalogo) === catLow) : null;
+
+  // 2. Lot match: ambos lados deben tener >= 4 chars para evitar falsos positivos
+  if (!m && loteLow.length >= 4) {
+    m = src.find(i => {
+      const sl = normLote(i.lote);
+      if (sl.length < 4) return false;
       return sl === loteLow || sl.includes(loteLow) || loteLow.includes(sl);
     });
   }
 
-  // 3. Raw code as catalog or lot
-  if (!m) {
-    m = stock.find(i => i.catalogo.toLowerCase().replace(/[\s.-]/g,'') === codeLow.replace(/[\s.-]/g,'')) ||
-        stock.find(i => i.lote.toLowerCase().replace(/\s+/g,'') === codeLow) ||
-        stock.find(i => codeLow.includes(i.lote.toLowerCase().replace(/\s+[a-zñ]{1,3}$/, '').replace(/\s+/g,'')));
+  // 3. Fallback: rawCode como catálogo o lote EXACTO — solo para códigos simples (no GS1)
+  //    Si es GS1, el rawCode es largo y contiene AIs, no usarlo directamente
+  if (!m && !isGS1) {
+    const codeNorm = codeLow.replace(/[\s.-]/g,'');
+    m = src.find(i => i.catalogo.toLowerCase().replace(/[\s.-]/g,'') === codeNorm) ||
+        src.find(i => i.lote.toLowerCase().replace(/\s+/g,'') === codeLow);
+    // substring solo si el lote del stock tiene >= 6 chars
+    if (!m) {
+      m = src.find(i => {
+        const sl = i.lote.toLowerCase().replace(/\s+[a-zñ]{1,3}$/, '').replace(/\s+/g,'');
+        return sl.length >= 6 && codeLow.includes(sl);
+      });
+    }
   }
   return m || null;
 }
@@ -2377,7 +2425,8 @@ function processBarcodeCode(code, context = 'alta') {
   }
 
   // ── 2. Look up in stock ──────────────────────────────────
-  const match = lookupInStock(catalogFromGS1, loteFromGS1, rawCode);
+  const isGS1 = Object.keys(parsed).length > 0;
+  const match = lookupInStock(catalogFromGS1, loteFromGS1, rawCode, isGS1);
 
   // ── 3. Fill fields depending on context ──────────────────
   if (context === 'alta') {
@@ -2386,9 +2435,16 @@ function processBarcodeCode(code, context = 'alta') {
     const loteEl    = document.getElementById('alta-lote');
     const vencEl    = document.getElementById('alta-vencimiento');
 
-    // Catalog: GS1 > stock match > raw
-    const finalCat = catalogFromGS1 || (match ? match.catalogo : rawCode);
-    catEl.value = finalCat; flashFill('alta-catalogo');
+    const catWarnEl = document.getElementById('cat-no-detected-warn');
+
+    // Catálogo: SOLO si GS1 detectó AI 240 (ref). NUNCA autocompletar desde match ni desde raw code.
+    if (catalogFromGS1) {
+      catEl.value = catalogFromGS1; flashFill('alta-catalogo');
+      if (catWarnEl) catWarnEl.style.display = 'none';
+    } else {
+      // Dejar campo vacío, mostrar advertencia
+      if (catWarnEl) catWarnEl.style.display = 'block';
+    }
 
     // Lot from GS1
     if (loteFromGS1 && !loteEl.value.trim()) { loteEl.value = loteFromGS1; flashFill('alta-lote'); }
@@ -2400,10 +2456,12 @@ function processBarcodeCode(code, context = 'alta') {
       document.getElementById('chk-sin-venc').checked = false;
     }
 
-    // Name & temp from stock match
+    // Nombre y temp: SOLO desde match de stock (por catálogo o lote). Nunca del código raw.
     if (match) {
       if (!nombreEl.value.trim()) { nombreEl.value = match.nombre; flashFill('alta-nombre'); }
-      if (!loteEl.value.trim())   { loteEl.value = loteFromGS1 || match.lote.replace(/\s+[A-ZÑ]{1,3}$/,'').trim(); flashFill('alta-lote'); }
+      if (!loteEl.value.trim())   { loteEl.value = loteFromGS1 || stripAI(match.lote).replace(/\s+[A-ZÑ]{1,3}$/,'').trim(); flashFill('alta-lote'); }
+      // Solo autocompletar catálogo desde stock si GS1 no lo proveyó
+      if (!catalogFromGS1 && !catEl.value.trim()) { catEl.value = stripAI(match.catalogo); flashFill('alta-catalogo'); if (catWarnEl) catWarnEl.style.display = 'none'; }
       inferAndSetTemp(match.catalogo, match.tempAlmacen);
     }
 
@@ -2411,17 +2469,19 @@ function processBarcodeCode(code, context = 'alta') {
     const parts = [];
     if (match)          parts.push(`✓ ${match.nombre}`);
     if (catalogFromGS1) parts.push(`Cat: ${catalogFromGS1}`);
+    else if (!match)    parts.push(`⚠ Catálogo no detectado`);
     if (loteFromGS1)    parts.push(`Lote: ${loteFromGS1}`);
     if (vencFromGS1)    parts.push(`Vence: ${gs1ExpToISO(parsed.expDate||parsed.bestBefore||'').replace(/(\d{4})-(\d{2})-(\d{2})/,'$3/$2/$1')}`);
     if (!match && parsed.serial) parts.push(`Serie: ${parsed.serial}`);
 
     if (statusEl) {
-      statusEl.className = 'barcode-status ' + (parts.length ? 'found' : 'notfound');
-      statusEl.textContent = parts.length
+      statusEl.className = 'barcode-status ' + (match ? 'found' : (Object.keys(parsed).length ? 'warn' : 'notfound'));
+      statusEl.textContent = Object.keys(parsed).length
         ? parts.join('  ·  ')
         : 'Código no reconocido — completá manualmente';
     }
-    if (parts.length) toast('QR leído: ' + (match ? match.nombre : (catalogFromGS1||rawCode.substring(0,20))), 'success');
+    if (match) toast('QR leído: ' + match.nombre, 'success');
+    else if (Object.keys(parsed).length) toast('QR GS1 leído — catálogo no detectado, completá manualmente', 'info');
     else toast('Código no encontrado en stock', 'info');
 
     // Show GS1 debug detail
