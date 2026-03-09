@@ -864,16 +864,6 @@ mark{background:transparent;color:var(--accent);font-weight:700}
         <input type="date" id="bd-vencimiento">
         <span class="hint">Usaremos esta fecha para extraer el vencimiento de futuros escaneos del mismo producto.</span>
       </div>
-      <div class="field">
-        <label>Temperatura de almacenamiento</label>
-        <select id="bd-temp">
-          <option value="15°C a 30°C">15°C a 30°C</option>
-          <option value="2°C a 8°C">2°C a 8°C</option>
-          <option value="-30°C a -10°C">-30°C a -10°C</option>
-          <option value="-25°C a -15°C">-25°C a -15°C</option>
-          <option value="-80°C">-80°C</option>
-        </select>
-      </div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="guardarEnBD()">
@@ -894,7 +884,6 @@ mark{background:transparent;color:var(--accent);font-weight:700}
           <th>N° Catálogo</th>
           <th>N° Lote</th>
           <th>Vencimiento</th>
-          <th>Temp.</th>
           <th style="max-width:220px">Código raw</th>
           <th></th>
         </tr></thead>
@@ -1612,6 +1601,7 @@ function altaAC(field) {
   const seen = new Set();
   const sugs = [];
   for (const item of stock) {
+    if (item.sheetName === '2022') continue; // datos incorrectos en 2022
     let val, subLabel;
     if (field==='catalogo') { val=item.catalogo; subLabel=item.nombre; }
     else if (field==='lote') { val=item.lote.replace(/\s+[A-ZÑ]{1,3}$/,'').trim(); subLabel=`${item.nombre} · Cat: ${item.catalogo} · Vence: ${fmtFecha(item.vencimiento)}`; }
@@ -3004,7 +2994,7 @@ function limpiarFiltroPersonalizado() {
 // BASE DE DATOS DE INSUMOS
 // ═══════════════════════════════════════════════════════════════
 const BD_SHEET = 'INSUMOS_BD';
-// BD_SHEET columns: A=codigo_raw, B=nombre, C=catalogo, D=lote, E=vencimiento, F=temp
+// BD_SHEET columns: A=codigo_raw, B=nombre, C=catalogo, D=lote, E=vencimiento
 let bdRecords = []; // [{codigoRaw, nombre, catalogo, lote, temp, rowIndex}]
 let bdTimer   = null;
 
@@ -3019,9 +3009,9 @@ async function ensureBDSheet() {
   });
   await gapi.client.sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${BD_SHEET}!A1:F1`,
+    range: `${BD_SHEET}!A1:E1`,
     valueInputOption: 'USER_ENTERED',
-    resource: { values: [['Código raw', 'Nombre', 'N° Catálogo', 'N° Lote', 'Vencimiento', 'Temperatura']] }
+    resource: { values: [['Código raw', 'Nombre', 'N° Catálogo', 'N° Lote', 'Vencimiento']] }
   });
 }
 
@@ -3037,10 +3027,9 @@ async function syncBD() {
     bdRecords = rows.map((r, i) => ({
       codigoRaw:  (r[0] || '').trim(),
       nombre:     (r[1] || '').trim(),
-      catalogo:   (r[2] || '').trim(),
+      catalogo:   (r[2] || '').trim().replace(/^'/, ''),
       lote:       (r[3] || '').trim(),
       vencimiento:(r[4] || '').trim(),
-      temp:       (r[5] || '').trim(),
       rowIndex:   i + 2
     })).filter(r => r.codigoRaw);
     renderBDTable();
@@ -3154,7 +3143,6 @@ function processBDBarcodeCode(raw) {
     document.getElementById('bd-catalogo').value    = existing.catalogo;
     document.getElementById('bd-lote').value        = existing.lote;
     document.getElementById('bd-vencimiento').value = existing.vencimiento || '';
-    document.getElementById('bd-temp').value        = existing.temp || '15°C a 30°C';
     // Show a persistent warning toast
     toast(`⚠️ Este código ya está en la BD: ${existing.nombre}`, 'error');
     return;
@@ -3183,7 +3171,6 @@ async function guardarEnBD() {
   const catalogo   = document.getElementById('bd-catalogo').value.trim();
   const lote       = document.getElementById('bd-lote').value.trim();
   const vencimiento= document.getElementById('bd-vencimiento').value.trim();
-  const temp       = document.getElementById('bd-temp').value;
 
   if (!raw)    { toast('Escaneá un código primero', 'error'); return; }
   if (!nombre) { toast('Completá el nombre del insumo', 'error'); return; }
@@ -3196,19 +3183,19 @@ async function guardarEnBD() {
       // Update existing row
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
-        range: `${BD_SHEET}!A${existing.rowIndex}:F${existing.rowIndex}`,
+        range: `${BD_SHEET}!A${existing.rowIndex}:E${existing.rowIndex}`,
         valueInputOption: 'USER_ENTERED',
-        resource: { values: [[raw, nombre, catalogo, lote, vencimiento, temp]] }
+        resource: { values: [[raw, nombre, "'" + catalogo, lote, vencimiento]] }
       });
       toast('✓ Registro actualizado en BD', 'success');
     } else {
       // Append new row
       await gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
-        range: `${BD_SHEET}!A:F`,
+        range: `${BD_SHEET}!A:E`,
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
-        resource: { values: [[raw, nombre, catalogo, lote, vencimiento, temp]] }
+        resource: { values: [[raw, nombre, "'" + catalogo, lote, vencimiento]] }
       });
       toast('✓ Guardado en base de datos', 'success');
     }
@@ -3255,7 +3242,6 @@ function renderBDTable() {
       <td>${htmlEsc(r.catalogo)}</td>
       <td>${htmlEsc(r.lote)}</td>
       <td>${r.vencimiento ? fmtFecha(r.vencimiento) : '<span style="color:var(--dim)">—</span>'}</td>
-      <td><span class="temp-badge">${htmlEsc(r.temp)}</span></td>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim)" title="${htmlEsc(r.codigoRaw)}">${htmlEsc(r.codigoRaw.length>40?r.codigoRaw.slice(0,40)+'…':r.codigoRaw)}</td>
       <td><button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;color:var(--red)" onclick="eliminarDeBD(${r.rowIndex},'${r.nombre.replace(/'/g,"\\'")}')">Eliminar</button></td>
     </tr>
@@ -3274,6 +3260,7 @@ function bdAC(field) {
   const seen = new Set();
   const sugs = [];
   for (const item of stock) {
+    if (item.sheetName === '2022') continue; // datos incorrectos en 2022
     let val, subLabel;
     if (field === 'catalogo') {
       val = stripAI(item.catalogo); subLabel = item.nombre;
@@ -3290,10 +3277,11 @@ function bdAC(field) {
   }
   bdSugs[field] = sugs;
   if (!sugs.length) { listEl.classList.remove('show'); return; }
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   listEl.innerHTML = sugs.map((s, i) =>
     `<div class="alta-ac-item" data-field="${field}" data-idx="${i}" onmousedown="bdACSelect('${field}',${i})">
-      <span class="ac-val">${htmlEsc(s.val)}</span>
-      <span class="ac-sub">${htmlEsc(s.subLabel)}</span>
+      <div class="ai-main">${s.val.replace(new RegExp(`(${esc})`,'gi'),'<strong style="color:var(--accent)">$1</strong>')}</div>
+      <div class="ai-sub">${htmlEsc(s.subLabel)}</div>
     </div>`
   ).join('');
   listEl.classList.add('show');
@@ -3310,14 +3298,8 @@ function bdACSelect(field, idx) {
     if (el && val) { el.value = val; flashFill(id); }
   };
 
-  const TEMPS = ['15°C a 30°C','2°C a 8°C','-30°C a -10°C','-25°C a -15°C','-80°C'];
-  const fillTemp = () => {
-    const tempSel = document.getElementById('bd-temp');
-    if (tempSel && item.tempAlmacen && TEMPS.includes(item.tempAlmacen)) tempSel.value = item.tempAlmacen;
-  };
-
   if (field === 'lote') {
-    // Lote identifica una unidad específica → completar todo
+    // Lote identifica una unidad específica → completar todo excepto temperatura
     setVal('bd-nombre',   item.nombre);
     setVal('bd-catalogo', stripAI(item.catalogo));
     const loteBase = stripAI(item.lote).replace(/\s+[A-ZÑ]{1,3}$/, '').trim();
@@ -3325,16 +3307,13 @@ function bdACSelect(field, idx) {
     if (item.vencimiento && item.vencimiento.toUpperCase() !== 'NA' && item.vencimiento !== 'No posee') {
       setVal('bd-vencimiento', item.vencimiento);
     }
-    fillTemp();
+  } else if (field === 'catalogo') {
+    // Catálogo → solo nombre (lote y vencimiento varían por unidad)
+    setVal('bd-nombre',   item.nombre);
+    setVal('bd-catalogo', stripAI(item.catalogo));
   } else {
-    // Catálogo o Nombre → solo nombre y temperatura (lote y vencimiento varían por unidad)
-    if (field === 'catalogo') {
-      setVal('bd-nombre',   item.nombre);
-      setVal('bd-catalogo', stripAI(item.catalogo));
-    } else {
-      setVal('bd-nombre',   item.nombre);
-    }
-    fillTemp();
+    // Nombre → solo nombre
+    setVal('bd-nombre', item.nombre);
   }
 }
 
@@ -3354,7 +3333,6 @@ function limpiarBD() {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('bd-vencimiento').value = '';
-  document.getElementById('bd-temp').value = '15°C a 30°C';
   const s = document.getElementById('bd-barcode-status');
   if (s) { s.className = 'barcode-status idle'; s.textContent = 'Listo — escaneá un código para comenzar'; }
 }
