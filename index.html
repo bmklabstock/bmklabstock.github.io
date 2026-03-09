@@ -1728,21 +1728,29 @@ async function guardarModificacion() {
   const id = [...consultaSelected][0];
   const item = stock.find(x => x.id === id);
   if (!item) return;
-  item.nombre       = document.getElementById('me-nombre').value.trim();
-  item.catalogo     = document.getElementById('me-catalogo').value.trim();
-  item.lote         = document.getElementById('me-lote').value.trim();
-  item.fecha        = toSheetDate(document.getElementById('me-fecha').value);
-  item.vencimiento  = document.getElementById('me-venc-na').checked ? 'NA' : toSheetDate(document.getElementById('me-venc').value);
-  const meTempSelV = document.getElementById('me-temp').value;
-  item.tempAlmacen  = meTempSelV === 'otra' ? (document.getElementById('me-temp-custom').value.trim() || 'Otra') : meTempSelV;
-  item.inicioConsumo= toSheetDate(document.getElementById('me-inicio').value);
-  item.finConsumo   = toSheetDate(document.getElementById('me-fin').value);
-  item.obs          = document.getElementById('me-obs').value.trim();
+
+  // Read ALL values from modal BEFORE closing it
+  const updates = {
+    nombre:        document.getElementById('me-nombre').value.trim(),
+    catalogo:      document.getElementById('me-catalogo').value.trim(),
+    lote:          document.getElementById('me-lote').value.trim(),
+    fecha:         toSheetDate(document.getElementById('me-fecha').value),
+    vencimiento:   document.getElementById('me-venc-na').checked ? 'NA' : toSheetDate(document.getElementById('me-venc').value),
+    tempAlmacen:   document.getElementById('me-temp').value === 'otra'
+                     ? (document.getElementById('me-temp-custom').value.trim() || 'Otra')
+                     : document.getElementById('me-temp').value,
+    inicioConsumo: toSheetDate(document.getElementById('me-inicio').value),
+    finConsumo:    toSheetDate(document.getElementById('me-fin').value),
+    obs:           document.getElementById('me-obs').value.trim(),
+  };
+
+  // NOW close modal
   cerrarModal();
-  const btn = document.querySelector('.btn-modificar');
-  btn.textContent = 'Guardando…'; btn.disabled = true;
+  Object.assign(item, updates);
+
+  toast('Guardando…', 'info');
   try {
-    const sheetRow = item.rowIndex; // rowIndex is already the 1-based sheet row
+    const sheetRow = item.rowIndex;
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `${item.sheetName}!B${sheetRow}:K${sheetRow}`,
@@ -1758,8 +1766,6 @@ async function guardarModificacion() {
     await syncFromSheets();
   } catch(e) {
     toast('Error al guardar: ' + (e.result?.error?.message || e.message), 'error');
-  } finally {
-    btn.textContent = '✏️ Modificar'; btn.disabled = false;
   }
 }
 
