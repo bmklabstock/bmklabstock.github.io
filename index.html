@@ -1973,8 +1973,8 @@ function selectBaja(id) {
   const item = stock.find(i=>i.id===id);
   document.getElementById('baja-selected-tag').innerHTML =
     `<div class="selected-tag">✓ <strong>${item.nombre}</strong> — Lote <span class="mono">${item.lote}</span> — ${yearBadge(getAnio(item))}</div>`;
-  document.getElementById('baja-inicio').value = new Date().toISOString().split('T')[0];
-  document.getElementById('baja-fin').value = '';
+  document.getElementById('baja-inicio').value = '';
+  document.getElementById('baja-fin').value = new Date().toISOString().split('T')[0];
   document.getElementById('baja-rendimiento').value = item.rendimiento||'';
   document.getElementById('baja-obs').value = item.obs||'';
   document.getElementById('baja-form-card').classList.add('show');
@@ -3217,17 +3217,69 @@ function limpiarFiltroPersonalizado() {
 }
 
 // ── Vistas guardadas ──────────────────────────────────────────
-function _vistasKey() {
-  const email = (document.getElementById('user-email')||{}).textContent || 'default';
-  return `labstock-vistas-${email}`;
+const VISTAS_SHEET = 'VISTAS_USUARIOS';
+let _vistasCache = null; // local cache to avoid repeated reads
+
+async function _ensureVistasSheet() {
+  const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  const exists = meta.result.sheets.some(s => s.properties.title === VISTAS_SHEET);
+  if (exists) return;
+  await gapi.client.sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    resource: { requests: [{ addSheet: { properties: { title: VISTAS_SHEET, gridProperties: { rowCount: 1000, columnCount: 4 } } } }] }
+  });
+  await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${VISTAS_SHEET}!A1:D1`,
+    valueInputOption: 'USER_ENTERED',
+    resource: { values: [['Email', 'Nombre', 'Fecha', 'Datos']] }
+  });
 }
-function _loadVistas() {
-  try { return JSON.parse(localStorage.getItem(_vistasKey()) || '[]'); } catch(e) { return []; }
+
+function _getUserEmail() {
+  return (document.getElementById('user-email') || {}).textContent?.trim() || 'default';
 }
-function _saveVistas(vistas) {
-  try { localStorage.setItem(_vistasKey(), JSON.stringify(vistas)); } catch(e) {}
+
+async function _loadVistas() {
+  if (_vistasCache !== null) return _vistasCache;
+  try {
+    await _ensureVistasSheet();
+    const resp = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${VISTAS_SHEET}!A2:D`
+    });
+    const email = _getUserEmail();
+    const rows = (resp.result.values || []);
+    _vistasCache = rows
+      .map((r, i) => ({ email: r[0]||'', nombre: r[1]||'', fecha: r[2]||'', datos: r[3]||'', rowIndex: i+2 }))
+      .filter(r => r.email === email && r.nombre)
+      .map(r => { try { return { ...JSON.parse(r.datos), _rowIndex: r.rowIndex }; } catch(e) { return null; } })
+      .filter(Boolean);
+    return _vistasCache;
+  } catch(e) { console.warn('_loadVistas error', e); return []; }
 }
-function fdGuardarVista() {
+
+async function _appendVista(vista) {
+  await _ensureVistasSheet();
+  const email = _getUserEmail();
+  await gapi.client.sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID,
+    range: `${VISTAS_SHEET}!A:D`,
+    valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
+    resource: { values: [[email, vista.nombre, vista.fecha, JSON.stringify(vista)]] }
+  });
+  _vistasCache = null; // invalidate cache
+}
+
+async function _deleteVista(rowIndex) {
+  await gapi.client.sheets.spreadsheets.values.clear({
+    spreadsheetId: SHEET_ID,
+    range: `${VISTAS_SHEET}!A${rowIndex}:D${rowIndex}`
+  });
+  _vistasCache = null;
+}
+async function fdGuardarVista() {
   const nombre = prompt('Nombre para esta vista de filtro:');
   if (!nombre || !nombre.trim()) return;
   const vista = {
@@ -3248,19 +3300,25 @@ function fdGuardarVista() {
     query:  consultaQuery,
     filter: consultaFilter,
   };
-  const vistas = _loadVistas();
-  // Replace if same name
-  const idx = vistas.findIndex(v => v.nombre === vista.nombre);
-  if (idx >= 0) { if (!confirm(`¿Reemplazar la vista "${vista.nombre}"?`)) return; vistas[idx] = vista; }
-  else vistas.unshift(vista);
-  _saveVistas(vistas);
-  fdRenderVistas();
-  toast(`✓ Vista "${vista.nombre}" guardada`);
+  try {
+    const vistas = await _loadVistas();
+    const dup = vistas.find(v => v.nombre === vista.nombre);
+    if (dup) {
+      if (!confirm(`¿Reemplazar la vista "${vista.nombre}"?`)) return;
+      await _deleteVista(dup._rowIndex);
+    }
+    await _appendVista(vista);
+    await fdRenderVistas();
+    toast(`✓ Vista "${vista.nombre}" guardada`);
+  } catch(e) {
+    toast('Error al guardar vista', 'error');
+    console.error(e);
+  }
 }
-function fdCargarVista(idx) {
-  const vistas = _loadVistas();
-  const v = vistas[idx]; if (!v) return;
-  // Restore filter state
+
+async function fdCargarVista(rowIndex) {
+  const vistas = await _loadVistas();
+  const v = vistas.find(v => v._rowIndex === rowIndex); if (!v) return;
   fpFiltros.estados   = new Set(v.filtros.estados   || []);
   fpFiltros.catalogos = new Set(v.filtros.catalogos || []);
   fpFiltros.nombres   = new Set(v.filtros.nombres   || []);
@@ -3270,25 +3328,21 @@ function fdCargarVista(idx) {
   fpFiltros.fechaHasta = v.filtros.fechaHasta || '';
   fpFiltros.vencDesde  = v.filtros.vencDesde  || '';
   fpFiltros.vencHasta  = v.filtros.vencHasta  || '';
-  // Restore UI checkboxes
   document.querySelectorAll('.fd-estado-list input').forEach(cb => {
     cb.checked = fpFiltros.estados.has(cb.value);
   });
-  // Restore date inputs
   ['fd-fecha-desde','fd-fecha-hasta','fd-venc-desde','fd-venc-hasta'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const map = {'fd-fecha-desde':'fechaDesde','fd-fecha-hasta':'fechaHasta','fd-venc-desde':'vencDesde','fd-venc-hasta':'vencHasta'};
     el.value = fpFiltros[map[id]] || '';
   });
-  // Restore year/query/filter
   if (v.year)  { consultaYear = v.year; }
   if (v.filter){ consultaFilter = v.filter; document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === v.filter)); }
   if (v.query !== undefined) {
     consultaQuery = v.query;
     const inp = document.getElementById('consulta-input'); if (inp) inp.value = v.query;
   }
-  // Re-render chips
   ['catalogo','nombre','lote'].forEach(f => {
     fdRenderChips(f);
     const inp = document.getElementById(`fd-search-${f}`); if (inp) inp.value = '';
@@ -3300,26 +3354,32 @@ function fdCargarVista(idx) {
   renderConsulta();
   toast(`✓ Vista "${v.nombre}" aplicada`);
 }
-function fdEliminarVista(idx) {
-  const vistas = _loadVistas();
-  const v = vistas[idx]; if (!v) return;
+
+async function fdEliminarVista(rowIndex) {
+  const vistas = await _loadVistas();
+  const v = vistas.find(v => v._rowIndex === rowIndex); if (!v) return;
   if (!confirm(`¿Eliminar la vista "${v.nombre}"?`)) return;
-  vistas.splice(idx, 1);
-  _saveVistas(vistas);
-  fdRenderVistas();
-  toast(`Vista "${v.nombre}" eliminada`);
+  try {
+    await _deleteVista(rowIndex);
+    await fdRenderVistas();
+    toast(`Vista "${v.nombre}" eliminada`);
+  } catch(e) {
+    toast('Error al eliminar vista', 'error');
+  }
 }
-function fdRenderVistas() {
+
+async function fdRenderVistas() {
   const container = document.getElementById('fd-vistas-list'); if (!container) return;
-  const vistas = _loadVistas();
+  container.innerHTML = '<span style="font-size:11px;color:var(--dim);font-style:italic">Cargando…</span>';
+  const vistas = await _loadVistas();
   if (!vistas.length) {
     container.innerHTML = '<span style="font-size:11px;color:var(--dim);font-style:italic">Sin vistas guardadas</span>';
     return;
   }
-  container.innerHTML = vistas.map((v, i) => `
-    <div style="display:flex;align-items:center;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2)">
-      <button onclick="fdCargarVista(${i})" title="${htmlEsc(v.fecha)}" style="padding:4px 10px;background:none;border:none;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${htmlEsc(v.nombre)}</button>
-      <button onclick="fdEliminarVista(${i})" style="padding:4px 7px;background:none;border:none;border-left:1px solid var(--border);color:var(--dim);cursor:pointer;font-size:13px;line-height:1" title="Eliminar">×</button>
+  container.innerHTML = vistas.map(v => `
+    <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2)">
+      <button onclick="fdCargarVista(${v._rowIndex})" title="${htmlEsc(v.fecha)}" style="padding:4px 10px;background:none;border:none;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${htmlEsc(v.nombre)}</button>
+      <button onclick="fdEliminarVista(${v._rowIndex})" style="padding:4px 7px;background:none;border:none;border-left:1px solid var(--border);color:var(--dim);cursor:pointer;font-size:13px;line-height:1" title="Eliminar">×</button>
     </div>`).join('');
 }
 
