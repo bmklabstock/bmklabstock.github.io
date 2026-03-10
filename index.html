@@ -148,7 +148,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .preview-table th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:500;color:var(--mid);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)}
 .preview-table td{padding:9px 12px;border-bottom:1px solid var(--border2);color:var(--text)}
 .preview-table tr:last-child td{border-bottom:none}
-.preview-row-new td{background:#f7f2fd}
+.preview-row-new td{background:var(--accent-l)}
 .lote-badge{font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--blue-l);color:var(--blue);padding:2px 7px;border-radius:4px;font-weight:600}
 
 /* BUTTONS */
@@ -286,7 +286,8 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 
 /* CONSULTA SELECCIÓN */
 .results-table tbody tr{cursor:pointer;transition:background .1s}
-.results-table tbody tr.selected-row{background:#f0eaf8 !important;outline:2px solid var(--accent);outline-offset:-2px}
+.results-table tbody tr.selected-row{background:var(--accent-l) !important;outline:2px solid var(--accent);outline-offset:-2px}
+.selected-row td{color:var(--text) !important}
 .consulta-actions{display:none;margin-top:12px;gap:10px;align-items:center}
 .consulta-actions.show{display:flex}
 .consulta-sel-count{font-size:13px;color:var(--mid);flex:1}
