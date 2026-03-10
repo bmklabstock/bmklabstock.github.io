@@ -16,6 +16,25 @@
   --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.04);
   --shadow-lg:0 8px 30px rgba(0,0,0,.12);
 }
+[data-theme="dark"]{
+  --bg:#0f0d15;--surface:#1a1726;--surface2:#211e2e;--border:#2e2a3d;--border2:#252233;
+  --text:#e8e3f5;--mid:#9d98b0;--dim:#5a5570;
+  --accent:#9d6fe0;--accent-l:#1e1830;--accent-d:#b98ee8;
+  --red:#e05252;--red-l:#1f1020;--amber:#e6a817;--amber-l:#1f1800;
+  --blue:#5b8ee8;--blue-l:#101828;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.2);
+  --shadow-lg:0 8px 30px rgba(0,0,0,.4);
+}
+
+/* Dark mode toggle button */
+.dark-mode-toggle{display:flex;align-items:center;justify-content:space-between;margin:0 12px 10px;padding:8px 12px;background:#1e1830;border:1px solid #2e2a3d;border-radius:10px;cursor:pointer;transition:.2s;user-select:none}
+.dark-mode-toggle:hover{border-color:#6b3fa0}
+.dark-mode-toggle-label{font-size:11px;font-weight:600;color:#9d98b0;letter-spacing:.3px}
+.dark-mode-track{width:38px;height:22px;border-radius:11px;background:#2e2a3d;position:relative;transition:.25s;flex-shrink:0}
+.dark-mode-track.on{background:#6b3fa0}
+.dark-mode-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.25s;display:flex;align-items:center;justify-content:center}
+.dark-mode-track.on .dark-mode-thumb{left:19px}
+.dark-mode-thumb svg{transition:.25s}
 body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;font-size:14px}
 
 /* LOGIN */
@@ -42,7 +61,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .brand-label{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;color:#fff;letter-spacing:-0.5px}
 .brand-sub{font-size:11px;color:#5a6058;margin-top:2px;letter-spacing:.5px;text-transform:uppercase}
 .sidebar-nav{padding:16px 12px;flex:1}
-.nav-section-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#3a2e4a;padding:0 8px;margin:16px 0 6px}
+.nav-section-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#7a6a8a;padding:0 8px;margin:16px 0 6px}
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;cursor:pointer;transition:all .15s;color:#8a9088;font-size:13px;font-weight:400;border:none;background:none;width:100%;text-align:left}
 .nav-item:hover{background:#1e1a23;color:#d0d4d1}
 .nav-item-subtle{opacity:.65;font-size:12px}
@@ -454,6 +473,19 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       Base de datos
     </button>
   </nav>
+  <div class="dark-mode-toggle" onclick="toggleDarkMode()" id="dm-toggle">
+    <span class="dark-mode-toggle-label" id="dm-label">MODO CLARO</span>
+    <div class="dark-mode-track" id="dm-track">
+      <div class="dark-mode-thumb">
+        <svg id="dm-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </div>
+    </div>
+  </div>
   <div class="sidebar-footer">
     <div class="user-chip">
       <div id="user-avatar-wrap"></div>
@@ -984,6 +1016,30 @@ const altaSugs     = {nombre:[], catalogo:[], lote:[]};
 let tokenClient;
 let gapiReady = false;
 let gisReady  = false;
+
+// ── Dark mode ──────────────────────────────────────────────────
+function toggleDarkMode() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  applyTheme(next);
+  try { localStorage.setItem('labstock-theme', next); } catch(e){}
+}
+function applyTheme(theme) {
+  const dark = theme === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+  const track = document.getElementById('dm-track');
+  const label = document.getElementById('dm-label');
+  const icon  = document.getElementById('dm-icon');
+  if (track) track.classList.toggle('on', dark);
+  if (label) label.textContent = dark ? 'MODO OSCURO' : 'MODO CLARO';
+  if (icon)  icon.setAttribute('stroke', dark ? '#fff' : '#888');
+}
+// Init theme from storage
+(function(){
+  let saved = 'light';
+  try { saved = localStorage.getItem('labstock-theme') || 'light'; } catch(e){}
+  applyTheme(saved);
+})();
 
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE IDENTITY / AUTH
