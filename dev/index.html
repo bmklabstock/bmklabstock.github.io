@@ -52,7 +52,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 #login-status{font-size:12px;color:var(--dim);margin-top:12px;min-height:18px}
 
 /* SHELL */
-.shell{display:flex;min-height:100vh}
+.shell{display:flex;min-height:100vh;align-items:flex-start}
 #app{display:none}
 
 /* SIDEBAR */
@@ -80,7 +80,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .btn-logout:hover{background:#1e1a23;color:#8a8090}
 
 /* MAIN */
-.main{flex:1;overflow-x:hidden;overflow-y:auto;height:100vh}
+.main{flex:1;overflow-x:hidden;min-width:0}
 .page{display:none;padding:32px 36px;animation:fadeIn .2s ease}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -4183,7 +4183,12 @@ function metricaRenderGlobal(main) {
     const cat = stripAI(s.catalogo||'');
     if (!cat||seen.has(cat)) continue;
     const data = _buildMetricaData(cat);
-    const usadas = data.unidades.filter(u=>(u.estado==='baja'||u.estado==='bajo')&&u.inicio&&u.fin);
+    const FECHA_INVALIDA = (s) => !s || s.trim().toUpperCase() === 'NA' || s.trim() === '-' || s.trim() === '0';
+  usadas = data.unidades.filter(u =>
+    (u.estado==='baja' || u.estado==='bajo') &&
+    u.inicio && u.fin &&
+    !FECHA_INVALIDA(u.inicio) && !FECHA_INVALIDA(u.fin)
+  );
     const disp = data.unidades.filter(u=>u.estado==='disponible').length + data.unidades.filter(u=>u.estado==='activo'||u.estado==='disponible').length;
     const durs = usadas.map(u=>{const d=_diasHabiles(_parseDateDMY(u.inicio),_parseDateDMY(u.fin));return d;}).filter(d=>d>0);
     const avg = durs.length ? Math.round(durs.reduce((a,b)=>a+b,0)/durs.length) : null;
@@ -4244,16 +4249,25 @@ function metricaRenderInsumo(main, insumo, data) {
   if(_mDurChart){_mDurChart.destroy();_mDurChart=null;}
   if(_mRendChart){_mRendChart.destroy();_mRendChart=null;}
 
-  const usadas = data.unidades.filter(u=>(u.estado==='baja'||u.estado==='bajo')&&u.inicio&&u.fin);
+  const FECHA_INVALIDA = (s) => !s || s.trim().toUpperCase() === 'NA' || s.trim() === '-' || s.trim() === '0';
+  usadas = data.unidades.filter(u =>
+    (u.estado==='baja' || u.estado==='bajo') &&
+    u.inicio && u.fin &&
+    !FECHA_INVALIDA(u.inicio) && !FECHA_INVALIDA(u.fin)
+  );
   const disponibles = data.unidades.filter(u=>u.estado==='disponible').length;
   const activas = data.unidades.filter(u=>u.estado==='activo').length;
   const totalStock = disponibles + activas;
 
-  const duraciones = usadas.map(u=>({
-    lote:u.lote,
-    dias:_diasHabiles(_parseDateDMY(u.inicio),_parseDateDMY(u.fin)),
-    rend:u.rend
-  })).filter(d=>d.dias>0);
+  const duraciones = usadas.map(u=>{
+    const d1 = _parseDateDMY(u.inicio);
+    const d2 = _parseDateDMY(u.fin);
+    // Excluir si alguna fecha es inválida, NA o si la diferencia es absurda (>500dh)
+    if(!d1 || !d2) return null;
+    const dh = _diasHabiles(d1, d2);
+    if(dh === null || dh <= 0 || dh > 500) return null;
+    return {lote: u.lote, dias: dh, rend: u.rend};
+  }).filter(Boolean);
 
   const avgDur = duraciones.length ? Math.round(duraciones.reduce((a,b)=>a+b.dias,0)/duraciones.length) : null;
   const lastDur = duraciones.length ? duraciones[duraciones.length-1].dias : null;
