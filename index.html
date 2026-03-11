@@ -1706,7 +1706,22 @@ function altaAC(field) {
     else if (field==='lote') { val=item.lote.replace(/\s+[A-ZÑ]{1,3}$/,'').trim(); subLabel=`${item.nombre} · Cat: ${item.catalogo} · Vence: ${fmtFecha(item.vencimiento)}`; }
     else { val=item.nombre; subLabel=`Catálogo: ${item.catalogo}`; }
     if (val.toLowerCase().includes(q) && !seen.has(val)) {
-      seen.add(val); sugs.push({val, subLabel, item});
+      seen.add(val);
+      // For nombre field: find the most frequent catalogo across all items with this nombre
+      let bestItem = item;
+      if (field === 'nombre') {
+        const freq = {};
+        for (const s of stock) {
+          if (s.sheetName === '2022') continue;
+          if (s.nombre === val && s.catalogo) freq[s.catalogo] = (freq[s.catalogo]||0) + 1;
+        }
+        const bestCat = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0];
+        if (bestCat) {
+          bestItem = stock.find(s => s.nombre === val && s.catalogo === bestCat) || item;
+          subLabel = `Catálogo: ${bestCat}`;
+        }
+      }
+      sugs.push({val, subLabel, item: bestItem});
     }
     if (sugs.length>=6) break;
   }
@@ -3727,8 +3742,16 @@ function bdACSelect(field, idx) {
     setVal('bd-nombre',   item.nombre);
     setVal('bd-catalogo', stripAI(item.catalogo));
   } else {
-    // Nombre → solo nombre
+    // Nombre → fill nombre and most frequent catalogo
     setVal('bd-nombre', item.nombre);
+    // Find most frequent catalogo for this nombre across stock
+    const freq = {};
+    for (const s of stock) {
+      if (s.sheetName === '2022') continue;
+      if (s.nombre === item.nombre && s.catalogo) freq[s.catalogo] = (freq[s.catalogo]||0) + 1;
+    }
+    const bestCat = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0];
+    if (bestCat) setVal('bd-catalogo', stripAI(bestCat));
   }
 }
 
