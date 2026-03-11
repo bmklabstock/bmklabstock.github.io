@@ -3522,8 +3522,21 @@ function extractLoteFromCode(newCode, storedCode, storedLote) {
   const loteIdx = codeUp.indexOf(loteClean);
   if (loteIdx < 0) return null;
 
+  // GUARD 1: el prefijo debe tener al menos 4 chars para ser significativo
+  // (evita que un prefijo vacío o muy corto haga match con cualquier código)
   const prefix = codeUp.substring(0, loteIdx);
+  if (prefix.length < 4) return null;
   if (!newUp.startsWith(prefix)) return null;
+
+  // GUARD 2: el sufijo después del lote también debe coincidir
+  const suffix = codeUp.substring(loteIdx + loteClean.length);
+  const newSuffix = newUp.substring(loteIdx + loteClean.length);
+  if (suffix.length > 0 && !newSuffix.startsWith(suffix)) return null;
+
+  // GUARD 3: la longitud total del nuevo código debe ser similar
+  // (tolera hasta 8 chars de diferencia por variación en longitud del lote)
+  const lenDiff = Math.abs(newUp.length - codeUp.length);
+  if (lenDiff > 8) return null;
 
   const extracted = newUp.substring(loteIdx, loteIdx + loteClean.length);
   if (extracted.length !== loteClean.length) return null;
