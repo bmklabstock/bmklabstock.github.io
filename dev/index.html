@@ -1783,6 +1783,7 @@ function setDashYear(año) { dashYear = año; renderDashboard(); }
 // Filtro temporal del dashboard → Consultas (se limpia al navegar)
 let _dashFiltroSet = null; // Set de catálogos, o null
 let _dashFiltroLabel = '';
+let _dashFiltroEstado = 'todos'; // estado a filtrar en consultas
 
 function irAConsultasConFiltro(q) {
   _dashFiltroSet = null;
@@ -1795,17 +1796,16 @@ function irAConsultasConFiltro(q) {
 }
 
 // Navega a Consultas mostrando solo los catálogos del Set, con banner informativo
-function irAConsultasConSet(cats, label) {
+function irAConsultasConSet(cats, label, estado) {
   _dashFiltroSet = new Set(cats.map(c => c.toUpperCase()));
   _dashFiltroLabel = label;
+  _dashFiltroEstado = estado || 'todos';
   consultaQuery = '';
   consultaYear  = 'todos';
-  consultaFilter = 'todos';
+  // vencido_vence se maneja en renderConsulta, no en consultaFilter
+  consultaFilter = (_dashFiltroEstado === 'vencido_vence' || _dashFiltroEstado === 'todos') ? 'todos' : _dashFiltroEstado;
   const input = document.getElementById('consulta-input');
   if (input) input.value = '';
-  console.log('[dashFiltro] cats:', cats, '→ Set:', [..._dashFiltroSet]);
-  // Muestra de stock para comparar
-  if (stock && stock.length) console.log('[dashFiltro] stock sample catalogo:', stock.slice(0,3).map(i => stripAI(i.catalogo||'').toUpperCase()));
   showPage('consultas');
 }
 
@@ -1813,6 +1813,8 @@ let _dashRange = 60;
 function _limpiarDashFiltro() {
   _dashFiltroSet = null;
   _dashFiltroLabel = '';
+  _dashFiltroEstado = 'todos';
+  consultaFilter = 'todos';
   renderConsulta();
 }
 function dashSetRange(n, btn) {
@@ -1842,13 +1844,12 @@ function renderDashboard() {
   document.getElementById('dash-venc-count').textContent = vencItems.length + ' insumo' + (vencItems.length !== 1 ? 's' : '');
 
   const LIMIT = 10;
-  // Mapa global para evitar problemas con JSON inline en HTML
   window._dashVerMasMap = {};
   let _vmIdx = 0;
-  const _verRestanteBtn = (cats, label, n) => {
+  const _verRestanteBtn = (cats, label, n, estado) => {
     const key = 'vm_' + (_vmIdx++);
-    window._dashVerMasMap[key] = {cats, label};
-    return `<div class="dash-ver-mas" onclick="irAConsultasConSet(window._dashVerMasMap['${key}'].cats, window._dashVerMasMap['${key}'].label)">Ver los ${n} restantes →</div>`;
+    window._dashVerMasMap[key] = {cats, label, estado: estado||'todos'};
+    return `<div class="dash-ver-mas" onclick="irAConsultasConSet(window._dashVerMasMap['${key}'].cats, window._dashVerMasMap['${key}'].label, window._dashVerMasMap['${key}'].estado)">Ver los ${n} restantes →</div>`;
   };
 
   const vencVisible = vencItems.slice(0, LIMIT);
@@ -1869,7 +1870,7 @@ function renderDashboard() {
           <div class="dash-venc-badge ${cls}">${label}</div>
           ${ARR}
         </div>`;
-      }).join('') + (vencRest.length ? _verRestanteBtn(vencCatsRest, `Vencidos y por vencer (${vencRest.length} más)`, vencRest.length) : '')
+      }).join('') + (vencRest.length ? _verRestanteBtn(vencCatsRest, `Vencidos y por vencer (${vencRest.length} más)`, vencRest.length, 'vencido_vence') : '')
     : '<div class="dash-empty">Sin vencidos ni por vencer ✓</div>';
 
   // ── BAJO STOCK / SIN STOCK ──────────────────────
@@ -1951,7 +1952,7 @@ function renderDashboard() {
       ${ARR}
     </div>`).join('');
   }
-  if (ssRest.length) ssHtml += _verRestanteBtn(ssCatsRest, `Alertas de bajo stock (${ssRest.length} más)`, ssRest.length);
+  if (ssRest.length) ssHtml += _verRestanteBtn(ssCatsRest, `Alertas de bajo stock (${ssRest.length} más)`, ssRest.length, 'disponible');
   document.getElementById('dash-ss-list').innerHTML = ssHtml || '<div class="dash-empty">Sin alertas de stock ✓</div>';
 
   // ── ERRORES DE CARGA ────────────────────────────
@@ -2031,7 +2032,7 @@ function renderDashboard() {
         </div>
         <div class="dash-err-badge ${e.tipo}">${e.badge}</div>
         ${ARR}
-      </div>`).join('') + (errRest.length ? _verRestanteBtn(errCatsRest, `Posibles errores de carga (${errRest.length} más)`, errRest.length) : '')
+      </div>`).join('') + (errRest.length ? _verRestanteBtn(errCatsRest, `Posibles errores de carga (${errRest.length} más)`, errRest.length, 'todos') : '')
     : '<div class="dash-empty">Sin errores detectados ✓</div>';
 
   // ── CALENDARIO ──────────────────────────────────
@@ -2535,7 +2536,6 @@ function sortConsulta(col) {
 }
 
 function renderConsulta() {
-  console.log('[renderConsulta] _dashFiltroSet:', _dashFiltroSet ? [..._dashFiltroSet] : null);
   // Banner del dashboard
   const bannerEl = document.getElementById('consulta-dash-banner');
   const bannerLabel = document.getElementById('consulta-dash-banner-label');
@@ -2553,6 +2553,7 @@ function renderConsulta() {
     i._cat.includes(consultaQuery)||
     i._lot.includes(consultaQuery));
   if (consultaFilter!=='todos') items=items.filter(i=>getEstado(i)===consultaFilter);
+  if (_dashFiltroEstado === 'vencido_vence') items=items.filter(i=>{ const e=getEstado(i); return e==='vencido'||e==='vence'; });
   if (_dashFiltroSet) items=items.filter(i=>_dashFiltroSet.has(stripAI(i.catalogo||'').toUpperCase()));
 
   // ── Filtros personalizados ──────────────────────────────────
