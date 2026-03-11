@@ -853,6 +853,10 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       </button>
     </div>
   </div>
+  <div id="consulta-dash-banner" style="display:none;align-items:center;justify-content:space-between;background:var(--accent-l);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:var(--accent-d)">
+    <span>📊 Mostrando: <strong id="consulta-dash-banner-label"></strong></span>
+    <button onclick="_limpiarDashFiltro()" style="background:none;border:1px solid var(--accent);border-radius:5px;color:var(--accent-d);font-size:11px;padding:2px 9px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">✕ Limpiar filtro</button>
+  </div>
   <div class="card">
     <div id="consulta-year-tabs" class="year-tabs-bar"></div>
     <div class="search-wrap" style="margin-bottom:16px">
@@ -2528,18 +2532,11 @@ function sortConsulta(col) {
 }
 
 function renderConsulta() {
-  // Banner del dashboard si venimos con filtro de set
-  let bannerEl = document.getElementById('consulta-dash-banner');
-  if (_dashFiltroSet) {
-    if (!bannerEl) {
-      bannerEl = document.createElement('div');
-      bannerEl.id = 'consulta-dash-banner';
-      bannerEl.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--accent-l);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:var(--accent-d)';
-      const pageConsultas = document.getElementById('page-consultas');
-      const yearTabs = document.getElementById('consulta-year-tabs');
-      pageConsultas.insertBefore(bannerEl, yearTabs);
-    }
-    bannerEl.innerHTML = `<span>📊 Mostrando: <strong>${_dashFiltroLabel}</strong></span><button onclick="_limpiarDashFiltro()" style="background:none;border:1px solid var(--accent);border-radius:5px;color:var(--accent-d);font-size:11px;padding:2px 9px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">✕ Limpiar filtro</button>`;
+  // Banner del dashboard
+  const bannerEl = document.getElementById('consulta-dash-banner');
+  const bannerLabel = document.getElementById('consulta-dash-banner-label');
+  if (_dashFiltroSet && bannerEl) {
+    bannerLabel.textContent = _dashFiltroLabel;
     bannerEl.style.display = 'flex';
   } else if (bannerEl) {
     bannerEl.style.display = 'none';
