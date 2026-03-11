@@ -80,7 +80,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .btn-logout:hover{background:#1e1a23;color:#8a8090}
 
 /* MAIN */
-.main{flex:1;overflow-x:hidden}
+.main{flex:1;overflow-x:hidden;overflow-y:auto;height:100vh}
 .page{display:none;padding:32px 36px;animation:fadeIn .2s ease}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -467,6 +467,26 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 .m-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:12px;color:var(--dim);text-align:center}
 .m-empty p{font-size:13px;line-height:1.6;max-width:320px}
 .m-sub-note{font-size:11px;color:var(--dim);margin-bottom:12px;padding:6px 10px;background:var(--surface2);border-radius:6px;border-left:2px solid var(--accent)}
+.metricas-filter-btn{display:flex;align-items:center;gap:6px;padding:9px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;color:var(--mid);cursor:pointer;font-size:13px;font-family:'IBM Plex Sans',sans-serif;transition:.15s;white-space:nowrap;flex-shrink:0}
+.metricas-filter-btn:hover,.metricas-filter-btn.active{border-color:var(--accent);color:var(--accent-d)}
+.metricas-filter-btn.active{background:var(--accent-l)}
+.metricas-filter-badge{background:var(--accent);color:#fff;font-size:9px;font-weight:700;width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+.metricas-filtro-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:10px;overflow:hidden}
+.metricas-filtro-inner{padding:16px 20px;display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap}
+.metricas-filtro-group{display:flex;flex-direction:column;gap:8px}
+.metricas-filtro-label{font-size:10px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.8px}
+.metricas-filtro-pills{display:flex;gap:6px;flex-wrap:wrap}
+.metricas-pill{padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:var(--mid);transition:.15s;background:none}
+.metricas-pill:hover{border-color:var(--accent);color:var(--accent-d)}
+.metricas-pill.active{background:var(--accent-l);border-color:var(--accent);color:var(--accent-d);font-weight:600}
+.metricas-filtro-dates{display:flex;gap:12px}
+.metricas-filtro-dates label{font-size:11px;color:var(--dim);display:block;margin-bottom:4px}
+.metricas-filtro-dates input{padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none;font-family:'IBM Plex Sans',sans-serif}
+.metricas-filtro-dates input:focus{border-color:var(--accent)}
+.metricas-filtro-clear{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--mid);font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif}
+.metricas-filtro-clear:hover{border-color:var(--red);color:var(--red)}
+.m-unit-more{margin-top:6px;font-size:12px;color:var(--accent-d);cursor:pointer;padding:5px 0;text-align:center;border:1px dashed var(--border);border-radius:6px}
+.m-unit-more:hover{background:var(--accent-l)}
 </style>
 </head>
 <body>
@@ -4024,10 +4044,15 @@ function _diasHabiles(d1, d2) {
   return count;
 }
 function _parseDateDMY(str) {
-  if(!str) return null;
-  const p=str.split('/');
-  if(p.length===3) return new Date(+p[2],+p[1]-1,+p[0]);
-  return new Date(str);
+  if(!str||str.toUpperCase()==='NA') return null;
+  str = str.trim();
+  if(str.includes('/')) {
+    const p=str.split('/');
+    if(p.length===3) { const d=new Date(+p[2],+p[1]-1,+p[0]); return isNaN(d)?null:d; }
+  }
+  // ISO YYYY-MM-DD or other formats
+  const d=new Date(str);
+  return isNaN(d)?null:d;
 }
 
 // ── Estado del módulo ─────────────────────────────
@@ -4036,21 +4061,42 @@ let metricaAcIndex = -1;
 let metricaAcItems = [];
 let _mRendChart = null;
 let _mDurChart = null;
+// Filtros de métricas
+let metricaFiltroYear = 'todos';
+let metricaFiltroDesde = '';
+let metricaFiltroHasta = '';
+let _metricaBDCache = null; // cache de datos construidos
 
 // Fuente de datos: derivado del stock cargado
 function _buildMetricaData(catalogo) {
-  // Busca unidades del catálogo en el stock global (stock array)
+  const cat = catalogo.toUpperCase();
   const unidades = stock
-    .filter(s => stripAI(s.catalogo).toUpperCase() === catalogo.toUpperCase())
-    .map(s => ({
-      lote: s.lote,
-      estado: s._estado || getEstado(s),
-      inicio: s.inicioConsumo || null,
-      fin:    s.finConsumo   || null,
-      rend:   s.rendimiento  ? parseFloat(s.rendimiento) : null,
-    }));
-  const tieneRendimiento = unidades.some(u => u.rend !== null && !isNaN(u.rend));
-  return { unidades, tieneRendimiento, rendLabel: 'muestras procesadas' };
+    .filter(s => stripAI(s.catalogo||'').toUpperCase() === cat)
+    .map(s => {
+      const estado = s._estado || getEstado(s);
+      return {
+        lote:   s.lote,
+        estado,
+        inicio: s.inicioConsumo || null,
+        fin:    s.finConsumo    || null,
+        rend:   s.rendimiento   ? parseFloat(s.rendimiento) : null,
+        year:   s.sheetName     || '',
+      };
+    });
+  // Aplicar filtros de año y rango de fecha
+  const filtered = unidades.filter(u => {
+    if(metricaFiltroYear !== 'todos' && u.year !== metricaFiltroYear) return false;
+    if(metricaFiltroDesde || metricaFiltroHasta) {
+      // Filtrar por fecha de inicio de uso (o fecha de llegada si no hay inicio)
+      const fechaRef = _parseDateDMY(u.inicio);
+      if(!fechaRef) return true; // sin fecha, incluir siempre
+      if(metricaFiltroDesde && fechaRef < new Date(metricaFiltroDesde)) return false;
+      if(metricaFiltroHasta && fechaRef > new Date(metricaFiltroHasta)) return false;
+    }
+    return true;
+  });
+  const tieneRendimiento = filtered.some(u => u.rend !== null && !isNaN(u.rend));
+  return { unidades: filtered, tieneRendimiento, rendLabel: 'muestras procesadas' };
 }
 
 // ── Autocomplete ──────────────────────────────────
@@ -4103,6 +4149,7 @@ function metricaOnKey(e){
 }
 function metricaSelect(i) {
   metricaSelected = metricaAcItems[i];
+  _mHistorialExpanded = false;
   document.getElementById('metricaSearch').value='';
   document.getElementById('metricaClear').style.display='none';
   metricaHideDrop();
@@ -4270,10 +4317,12 @@ function metricaRenderInsumo(main, insumo, data) {
     </div>
   </div>`;
 
-  // Unit timeline
+  // Unit timeline — max 15, expand on demand
   const maxD = duraciones.length ? Math.max(...duraciones.map(d=>d.dias)) : 1;
   const tl = document.getElementById('mUnitTimeline');
-  data.unidades.forEach(u=>{
+  const HIST_LIMIT = 15;
+  const unidadesShow = _mHistorialExpanded ? data.unidades : data.unidades.slice(0, HIST_LIMIT);
+  unidadesShow.forEach(u=>{
     const dh = u.inicio&&u.fin?_diasHabiles(_parseDateDMY(u.inicio),_parseDateDMY(u.fin)):null;
     const barW = dh?`${Math.max(4,(dh/maxD*100)).toFixed(0)}%`:'100%';
     const estadoKey = u.estado==='baja'||u.estado==='bajo'?'usado':u.estado==='activo'?'activo':'disponible';
@@ -4284,6 +4333,9 @@ function metricaRenderInsumo(main, insumo, data) {
       <div class="m-unit-dur">${dh!==null?dh+'dh':'—'}</div>
     </div>`;
   });
+  if(!_mHistorialExpanded && data.unidades.length > HIST_LIMIT) {
+    tl.innerHTML += `<div class="m-unit-more" onclick="metricaExpandHistorial()">▾ Ver ${data.unidades.length - HIST_LIMIT} unidades más</div>`;
+  }
 
   // Duración chart
   if(duraciones.length) {
@@ -4362,6 +4414,44 @@ function metricaRenderInsumo(main, insumo, data) {
       </div>`;
     });
   }
+}
+
+function metricaToggleFiltro() {
+  const panel = document.getElementById('metricaFiltroPanel');
+  const btn = document.getElementById('metricaFiltroBtn');
+  const show = panel.style.display === 'none';
+  panel.style.display = show ? 'block' : 'none';
+  btn.classList.toggle('active', show);
+}
+function metricaSetYear(el) {
+  document.querySelectorAll('#metricaYearPills .metricas-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  metricaFiltroYear = el.dataset.val;
+  metricaApplyFilter();
+}
+function metricaApplyFilter() {
+  metricaFiltroDesde = document.getElementById('metricaDesde').value;
+  metricaFiltroHasta = document.getElementById('metricaHasta').value;
+  const hasFiltro = metricaFiltroYear!=='todos' || metricaFiltroDesde || metricaFiltroHasta;
+  const badge = document.getElementById('metricaFiltroBadge');
+  if(badge) badge.style.display = hasFiltro ? 'inline-flex' : 'none';
+  metricaRenderMain();
+}
+function metricaLimpiarFiltro() {
+  metricaFiltroYear = 'todos';
+  metricaFiltroDesde = '';
+  metricaFiltroHasta = '';
+  document.getElementById('metricaDesde').value = '';
+  document.getElementById('metricaHasta').value = '';
+  document.querySelectorAll('#metricaYearPills .metricas-pill').forEach(p=>p.classList.toggle('active', p.dataset.val==='todos'));
+  document.getElementById('metricaFiltroBadge').style.display = 'none';
+  metricaRenderMain();
+}
+// Historial expandido state
+let _mHistorialExpanded = false;
+function metricaExpandHistorial() {
+  _mHistorialExpanded = true;
+  metricaRenderMain();
 }
 
 // Inicializar cuando se abre la página
@@ -4511,6 +4601,35 @@ document.addEventListener('click', e => {
     <div id="metricaNoSel" class="metricas-no-sel">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Mostrando alertas y proyecciones globales
+    </div>
+    <!-- Botón filtro -->
+    <button class="metricas-filter-btn" id="metricaFiltroBtn" onclick="metricaToggleFiltro()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filtrar
+      <span class="metricas-filter-badge" id="metricaFiltroBadge" style="display:none">!</span>
+    </button>
+  </div>
+  <!-- Panel de filtro -->
+  <div class="metricas-filtro-panel" id="metricaFiltroPanel" style="display:none">
+    <div class="metricas-filtro-inner">
+      <div class="metricas-filtro-group">
+        <div class="metricas-filtro-label">Año</div>
+        <div class="metricas-filtro-pills" id="metricaYearPills">
+          <div class="metricas-pill active" data-val="todos" onclick="metricaSetYear(this)">Todos</div>
+          <div class="metricas-pill" data-val="2023" onclick="metricaSetYear(this)">2023</div>
+          <div class="metricas-pill" data-val="2024" onclick="metricaSetYear(this)">2024</div>
+          <div class="metricas-pill" data-val="2025" onclick="metricaSetYear(this)">2025</div>
+          <div class="metricas-pill" data-val="2026" onclick="metricaSetYear(this)">2026</div>
+        </div>
+      </div>
+      <div class="metricas-filtro-group">
+        <div class="metricas-filtro-label">Rango de fecha de uso</div>
+        <div class="metricas-filtro-dates">
+          <div><label>Desde</label><input type="date" id="metricaDesde" onchange="metricaApplyFilter()"></div>
+          <div><label>Hasta</label><input type="date" id="metricaHasta" onchange="metricaApplyFilter()"></div>
+        </div>
+      </div>
+      <button class="metricas-filtro-clear" onclick="metricaLimpiarFiltro()">Limpiar filtros</button>
     </div>
   </div>
   <div id="metricaMain" style="display:flex;flex-direction:column;gap:16px;margin-top:16px"></div>
