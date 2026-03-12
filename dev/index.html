@@ -116,7 +116,6 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 /* CARDS */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;box-shadow:var(--shadow)}
 .card+.card{margin-top:16px}
-.dash-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
 .card-title{font-size:13px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.8px;margin-bottom:18px;display:flex;align-items:center;gap:8px}
 .card-title::before{content:'';width:3px;height:14px;border-radius:2px;background:var(--accent);flex-shrink:0}
 
@@ -252,78 +251,6 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 
 /* STATS */
 .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
-/* ── DASHBOARD NUEVO ── */
-.dash-stat-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
-.dash-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px}
-.dash-stat-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.dash-stat-icon.red{background:#1e0f0f}.dash-stat-icon.amber{background:#1c1400}.dash-stat-icon.orange{background:#1c0e00}
-.dash-stat-num{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;line-height:1}
-.dash-stat-lbl{font-size:11px;color:var(--mid);margin-top:2px}
-.dash-stat-num.red{color:#f08080}.dash-stat-num.amber{color:#f5b93a}.dash-stat-num.orange{color:#f5943a}
-.dash-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
-.dash-card-head{padding:16px 20px 14px;display:flex;align-items:center;justify-content:space-between}
-.dash-card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.9px;color:var(--mid)}
-.dash-card-count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);background:var(--surface2);padding:2px 8px;border-radius:4px}
-.dash-empty{padding:20px;text-align:center;font-size:12px;color:var(--dim)}
-/* vencimientos */
-.dash-venc-item{display:flex;align-items:center;gap:12px;padding:10px 20px;border-top:1px solid var(--border2);cursor:pointer;transition:.15s}
-.dash-venc-item:hover{background:var(--surface2)}
-.dash-venc-bar{width:3px;flex-shrink:0;align-self:stretch;border-radius:2px;min-height:32px}
-.dash-venc-bar.vencido{background:#5a1a1a}.dash-venc-bar.critico{background:var(--red)}.dash-venc-bar.proximo{background:var(--amber)}
-.dash-venc-body{flex:1;min-width:0}
-.dash-venc-nombre{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
-.dash-venc-meta{font-size:11px;color:var(--mid);display:flex;gap:12px}
-.dash-venc-badge{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;white-space:nowrap}
-.dash-venc-badge.vencido{background:#160a0a;color:#b06060;border:1px solid #2e1010}
-.dash-venc-badge.critico{background:#1e0f0f;color:#f08080;border:1px solid #3a1212}
-.dash-venc-badge.proximo{background:#1c1400;color:#f5b93a;border:1px solid #2e1e00}
-/* bajo stock */
-.dash-ss-item{display:flex;align-items:center;gap:12px;padding:10px 20px;border-top:1px solid var(--border2);cursor:pointer;transition:.15s}
-.dash-ss-item:hover{background:var(--surface2)}
-.dash-ss-body{flex:1;min-width:0}
-.dash-ss-nombre{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
-.dash-ss-cat{font-size:11px;color:var(--dim);font-family:'IBM Plex Mono',monospace}
-.dash-ss-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
-.dash-ss-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
-.dash-ss-badge.sinstock{background:#1e0f0f;color:#f08080;border:1px solid #3a1212}
-.dash-ss-badge.bajo{background:#1c1400;color:#f5b93a;border:1px solid #2e1e00}
-.dash-ss-ub{font-size:10px;color:var(--dim)}
-.dash-ss-divider{padding:4px 20px 6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);background:var(--surface2);border-top:1px solid var(--border2);border-bottom:1px solid var(--border2)}
-/* errores */
-.dash-err-item{display:flex;align-items:flex-start;gap:12px;padding:11px 20px;border-top:1px solid var(--border2);cursor:pointer;transition:.15s}
-.dash-err-item:hover{background:var(--surface2)}
-.dash-err-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
-.dash-err-icon.fecha{background:#160e00}.dash-err-icon.incons{background:#0e0016}.dash-err-icon.logico{background:#160a0a}
-.dash-err-body{flex:1;min-width:0}
-.dash-err-nombre{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
-.dash-err-desc{font-size:11px;color:var(--mid);line-height:1.5}
-.dash-err-desc code{font-family:'IBM Plex Mono',monospace;background:var(--surface3);padding:1px 5px;border-radius:3px;font-size:10px;color:var(--text)}
-.dash-err-badge{flex-shrink:0;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;font-family:'IBM Plex Mono',monospace;white-space:nowrap;margin-top:2px}
-.dash-err-badge.fecha{background:#160e00;color:#e8a840;border:1px solid #2a1e00}
-.dash-err-badge.incons{background:#0e0016;color:#c4a2f5;border:1px solid #2a1040}
-.dash-err-badge.logico{background:#1e0f0f;color:#f08080;border:1px solid #3a1212}
-/* calendario */
-.dash-cal-wrap{padding:4px 20px 20px}
-.dash-cal-month{margin-bottom:18px}
-.dash-cal-month:last-child{margin-bottom:0}
-.dash-cal-month-hdr{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border2)}
-.dash-cal-month-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;min-width:90px}
-.dash-cal-month-bar{flex:1;height:2px;background:var(--border2);border-radius:1px;overflow:hidden}
-.dash-cal-month-fill{height:100%;border-radius:1px;background:var(--accent);opacity:.35}
-.dash-cal-month-n{font-size:10px;color:var(--dim);font-family:'IBM Plex Mono',monospace}
-.dash-cal-item{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;cursor:pointer;transition:.15s}
-.dash-cal-item:hover{background:var(--surface2)}
-.dash-cal-fecha{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mid);width:46px;flex-shrink:0}
-.dash-cal-nombre{font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dash-cal-lote{font-size:10px;color:var(--dim);font-family:'IBM Plex Mono',monospace;flex-shrink:0;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dash-cal-dias{font-size:11px;font-weight:600;font-family:'IBM Plex Mono',monospace;flex-shrink:0;padding:2px 7px;border-radius:4px;min-width:36px;text-align:right}
-.dash-cal-dias.d7{color:#f08080;background:#1e0f0f}.dash-cal-dias.d30{color:#f5b93a;background:#1c1400}
-.dash-cal-dias.d60{color:#6ddaa4;background:#0a1810}.dash-cal-dias.d90{color:var(--mid);background:var(--surface3)}
-.dash-range-pills{display:flex;gap:4px}
-.dash-rpill{padding:2px 9px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid var(--border);color:var(--dim);background:none;font-family:'IBM Plex Sans',sans-serif;transition:.15s}
-.dash-rpill.active{background:var(--accent-l);border-color:var(--accent);color:var(--accent-d)}
-.dash-ver-mas{padding:11px 20px;text-align:center;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;border-top:1px solid var(--border2);transition:.15s}
-.dash-ver-mas:hover{background:var(--accent-l)}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow)}
 .stat-value{font-size:28px;font-weight:600;letter-spacing:-1px;line-height:1}
 .stat-label{font-size:11px;color:var(--dim);margin-top:5px;text-transform:uppercase;letter-spacing:.5px}
@@ -331,6 +258,74 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 .stat-card.red .stat-value{color:var(--red)}
 .stat-card.amber .stat-value{color:var(--amber)}
 .stat-card.blue .stat-value{color:var(--blue)}
+
+/* DASHBOARD v2 */
+.dash-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.dash-kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow)}
+.dash-kpi.red{border-color:rgba(224,82,82,.25)}
+.dash-kpi.amber{border-color:rgba(230,168,23,.25)}
+.dash-kpi.purple{border-color:rgba(157,111,224,.25)}
+.dash-kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
+.dash-kpi.red .dash-kpi-icon{background:var(--red-l)}
+.dash-kpi.amber .dash-kpi-icon{background:var(--amber-l)}
+.dash-kpi.purple .dash-kpi-icon{background:var(--accent-l)}
+.dash-kpi-val{font-size:34px;font-weight:600;font-family:'IBM Plex Mono',monospace;line-height:1}
+.dash-kpi.red .dash-kpi-val{color:var(--red)}
+.dash-kpi.amber .dash-kpi-val{color:var(--amber)}
+.dash-kpi.purple .dash-kpi-val{color:var(--accent-d)}
+.dash-kpi-label{font-size:12px;color:var(--mid);margin-top:4px;font-weight:500}
+.dash-kpi-sub{font-size:11px;color:var(--dim);margin-top:2px}
+.dash-panels-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.dash-panel-header{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.dash-panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mid);display:flex;align-items:center;gap:8px}
+.dash-panel-title::before{content:'';width:3px;height:12px;border-radius:2px;flex-shrink:0}
+.dash-panel.red .dash-panel-title::before{background:var(--red)}
+.dash-panel.amber .dash-panel-title::before{background:var(--amber)}
+.dash-panel.blue .dash-panel-title::before{background:var(--blue)}
+.dash-panel.purple .dash-panel-title::before{background:var(--accent-d)}
+.dash-panel-count{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px}
+.dash-panel.red .dash-panel-count{background:var(--red-l);color:var(--red)}
+.dash-panel.amber .dash-panel-count{background:var(--amber-l);color:var(--amber)}
+.dash-panel.blue .dash-panel-count{background:var(--blue-l);color:var(--blue)}
+.dash-panel.purple .dash-panel-count{background:var(--accent-l);color:var(--accent-d)}
+.dash-panel-list{max-height:310px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;flex:1}
+.dash-panel-list::-webkit-scrollbar{width:3px}
+.dash-panel-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.dash-row{display:flex;align-items:center;justify-content:space-between;padding:9px 18px;border-bottom:1px solid var(--border2);gap:10px;cursor:pointer;transition:background .12s;user-select:none}
+.dash-row:last-child{border-bottom:none}
+.dash-row:hover{background:rgba(157,111,224,.07)}
+.dash-row:hover .dash-row-arrow{opacity:1}
+.dash-row-arrow{opacity:0;color:var(--accent-d);font-size:11px;flex-shrink:0;transition:opacity .12s}
+.dash-row-left{min-width:0;flex:1}
+.dash-row-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-row-meta{font-size:11px;color:var(--dim);margin-top:2px;font-family:'IBM Plex Mono',monospace}
+.dash-badge-red{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:var(--red-l);color:var(--red)}
+.dash-badge-amber{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:var(--amber-l);color:var(--amber)}
+.dash-badge-blue{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:var(--blue-l);color:var(--blue)}
+.dash-badge-zero{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:var(--red-l);color:var(--red);border:1px solid rgba(224,82,82,.3)}
+.dash-badge-low{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:var(--amber-l);color:var(--amber)}
+.dash-badge-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;letter-spacing:.5px}
+.dash-tag-fecha{background:var(--red-l);color:var(--red)}
+.dash-tag-logico{background:var(--amber-l);color:var(--amber)}
+.dash-tag-nombre{background:var(--accent-l);color:var(--accent-d)}
+.dash-tag-cat{background:var(--blue-l);color:var(--blue)}
+.dash-list-section{padding:6px 18px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);background:var(--surface2);border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between}
+.dash-list-section-count{font-size:10px;background:var(--border);color:var(--mid);padding:1px 7px;border-radius:8px;font-weight:600}
+.dash-mes-label{padding:7px 18px 5px;font-size:10px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--dim);background:var(--surface2);border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between}
+.dash-mes-count{font-size:10px;background:var(--border);color:var(--mid);padding:1px 7px;border-radius:8px;font-weight:600}
+.dash-prox-day{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--mid);width:24px;text-align:right;flex-shrink:0}
+.dash-seg-tabs{display:flex;background:var(--surface2);border-radius:6px;padding:2px;gap:1px}
+.dash-seg-tab{padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--dim);transition:all .15s;font-family:'IBM Plex Sans',sans-serif}
+.dash-seg-tab.active{background:var(--blue);color:#fff}
+.dash-err-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+.dash-err-icon.fecha{background:var(--red-l)}
+.dash-err-icon.logico{background:var(--amber-l)}
+.dash-err-icon.nombre{background:var(--accent-l)}
+.dash-err-icon.cat{background:var(--blue-l)}
+.dash-err-body{flex:1;min-width:0;margin-left:10px}
+.dash-err-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-err-desc{font-size:11px;color:var(--dim);margin-top:3px;line-height:1.4}
 
 /* TOAST */
 .toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
@@ -441,18 +436,29 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 .filter-drawer-footer .btn{flex:1;justify-content:center}
 .fd-section-title{font-size:10px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:5px}
 .fd-section-title::before{content:'';width:3px;height:11px;border-radius:2px;background:var(--accent);flex-shrink:0}
-.fd-chip-group{display:flex;flex-wrap:wrap;gap:5px}
-.fd-chip{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--mid);transition:all .12s;user-select:none}
-.fd-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
+.fd-chip-group{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;min-height:4px}
+.fd-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px 4px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--accent);background:var(--accent);color:#fff;transition:all .12s;user-select:none}
+.fd-chip:hover{background:var(--accent-d);border-color:var(--accent-d)}
 .fd-chip.selected{border-color:var(--accent);background:var(--accent);color:#fff}
-.fd-search{width:100%;padding:7px 11px;border:1px solid var(--border);border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;outline:none;background:var(--surface);color:var(--text);margin-bottom:6px}
+.fd-chip-x{display:flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.25);font-size:11px;line-height:1;transition:background .12s}
+.fd-chip:hover .fd-chip-x{background:rgba(255,255,255,.4)}
+.fd-count-badge{display:none;margin-left:auto;font-size:10px;background:var(--accent-l);color:var(--accent);padding:1px 7px;border-radius:10px;font-weight:700}
+.fd-count-badge.show{display:inline-flex}
+.fd-search{width:100%;padding:8px 11px 8px 32px;border:1.5px solid var(--border);border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;outline:none;background:var(--surface);color:var(--text);transition:border-color .15s,box-shadow .15s}
 .fd-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l)}
-.fd-dropdown{position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:10;display:none;max-height:150px;overflow-y:auto}
+.fd-search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none}
+.fd-dropdown{position:absolute;top:calc(100%+4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--accent);border-radius:8px;box-shadow:var(--shadow-lg);z-index:10;display:none;max-height:200px;overflow-y:auto}
 .fd-dropdown.show{display:block}
-.fd-drop-item{padding:7px 11px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)}
+.fd-drop-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2);transition:background .1s;user-select:none}
 .fd-drop-item:last-child{border-bottom:none}
 .fd-drop-item:hover{background:var(--accent-l)}
+.fd-drop-item.is-selected{background:var(--accent-l)}
 .fd-drop-item mark{background:transparent;color:var(--accent);font-weight:700}
+.fd-item-check{width:16px;height:16px;flex-shrink:0;border:1.5px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .12s;background:var(--surface)}
+.fd-drop-item.is-selected .fd-item-check{background:var(--accent);border-color:var(--accent)}
+.fd-item-check svg{display:none}
+.fd-drop-item.is-selected .fd-item-check svg{display:block}
+.fd-item-label{flex:1;line-height:1.3}
 .fd-search-wrap{position:relative}
 .fd-date-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fd-date-grid label{font-size:11px;color:var(--mid);font-weight:500;display:block;margin-bottom:3px}
@@ -586,62 +592,74 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       <span id="sync-label">Sincronizar</span>
     </button>
   </div>
-  <div id="alert-container"></div>
-  <div id="dash-year-tabs" class="year-tabs-bar"></div>
 
-  <!-- STAT STRIP -->
-  <div class="dash-stat-strip">
-    <div class="dash-stat">
-      <div class="dash-stat-icon red"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-      <div><div class="dash-stat-num red" id="stat-vencido">—</div><div class="dash-stat-lbl">Vencidos</div></div>
+  <!-- KPIs -->
+  <div class="dash-kpi-row">
+    <div class="dash-kpi red">
+      <div class="dash-kpi-icon">⚠️</div>
+      <div>
+        <div class="dash-kpi-val" id="kpi-vencidos">—</div>
+        <div class="dash-kpi-label">Vencidos sin dar de baja</div>
+      </div>
     </div>
-    <div class="dash-stat">
-      <div class="dash-stat-icon amber"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-      <div><div class="dash-stat-num amber" id="stat-vence">—</div><div class="dash-stat-lbl">Por vencer (60d)</div></div>
+    <div class="dash-kpi amber">
+      <div class="dash-kpi-icon">📦</div>
+      <div>
+        <div class="dash-kpi-val" id="kpi-stock-bajo">—</div>
+        <div class="dash-kpi-label">Alertas de stock bajo</div>
+        <div class="dash-kpi-sub">Última baja &lt;60d · ≤2 unidades</div>
+      </div>
     </div>
-    <div class="dash-stat">
-      <div class="dash-stat-icon orange"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f5943a" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-      <div><div class="dash-stat-num orange" id="stat-errores">—</div><div class="dash-stat-lbl">Posibles errores</div></div>
+    <div class="dash-kpi purple">
+      <div class="dash-kpi-icon">🔍</div>
+      <div>
+        <div class="dash-kpi-val" id="kpi-errores">—</div>
+        <div class="dash-kpi-label">Posibles errores de carga</div>
+        <div class="dash-kpi-sub">Fechas, nombres, catálogos</div>
+      </div>
     </div>
   </div>
 
-  <!-- FILA 1 -->
-  <div class="dash-grid-2">
-    <div class="dash-card">
-      <div class="dash-card-head">
-        <div class="dash-card-title">Vencidos y por vencer</div>
-        <div class="dash-card-count" id="dash-venc-count">—</div>
+  <!-- Paneles fila 1: vencidos + próximos -->
+  <div class="dash-panels-grid">
+    <div class="dash-panel red">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title">Vencidos y por vencer</div>
+        <span class="dash-panel-count" id="panel-count-venc">—</span>
       </div>
-      <div id="dash-venc-list"></div>
+      <div class="dash-panel-list" id="panel-vencidos"></div>
     </div>
-    <div class="dash-card">
-      <div class="dash-card-head">
-        <div class="dash-card-title">Alertas de bajo stock</div>
-        <div class="dash-card-count" id="dash-ss-count">—</div>
-      </div>
-      <div id="dash-ss-list"></div>
-    </div>
-  </div>
-
-  <!-- FILA 2 -->
-  <div class="dash-grid-2">
-    <div class="dash-card">
-      <div class="dash-card-head">
-        <div class="dash-card-title">Próximos vencimientos</div>
-        <div class="dash-range-pills">
-          <button class="dash-rpill" onclick="dashSetRange(30,this)">30d</button>
-          <button class="dash-rpill active" onclick="dashSetRange(60,this)">60d</button>
-          <button class="dash-rpill" onclick="dashSetRange(90,this)">90d</button>
+    <div class="dash-panel blue">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title">Próximos vencimientos</div>
+        <div class="dash-seg-tabs" id="prox-tabs">
+          <button class="dash-seg-tab" data-d="30" onclick="setProxDays(30)">30d</button>
+          <button class="dash-seg-tab active" data-d="60" onclick="setProxDays(60)">60d</button>
+          <button class="dash-seg-tab" data-d="90" onclick="setProxDays(90)">90d</button>
         </div>
       </div>
-      <div class="dash-cal-wrap" id="dash-cal-wrap"></div>
+      <div class="dash-panel-list" id="panel-proximos"></div>
     </div>
-    <div class="dash-card">
-      <div class="dash-card-head">
-        <div class="dash-card-title">Posibles errores de carga</div>
-        <div class="dash-card-count" id="dash-err-count">—</div>
+  </div>
+
+  <!-- Paneles fila 2: stock bajo + errores -->
+  <div class="dash-panels-grid">
+    <div class="dash-panel amber">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title">Alertas de bajo stock</div>
+        <span class="dash-panel-count" id="panel-count-stock">—</span>
       </div>
-      <div id="dash-err-list"></div>
+      <div class="dash-panel-list" id="panel-stock"></div>
+    </div>
+    <div class="dash-panel purple">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title">Posibles errores de carga</div>
+        <span class="dash-panel-count" id="panel-count-errores">—</span>
+      </div>
+      <div style="padding:8px 14px;border-bottom:1px solid var(--border);overflow-x:auto">
+        <div class="dash-seg-tabs" id="errores-year-tabs" style="width:max-content"></div>
+      </div>
+      <div class="dash-panel-list" id="panel-errores"></div>
     </div>
   </div>
 </div>
@@ -853,10 +871,6 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       </button>
     </div>
   </div>
-  <div id="consulta-dash-banner" style="display:none;align-items:center;justify-content:space-between;background:var(--accent-l);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:var(--accent-d)">
-    <span>📊 Mostrando: <strong id="consulta-dash-banner-label"></strong></span>
-    <button onclick="_limpiarDashFiltro()" style="background:none;border:1px solid var(--accent);border-radius:5px;color:var(--accent-d);font-size:11px;padding:2px 9px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">✕ Limpiar filtro</button>
-  </div>
   <div class="card">
     <div id="consulta-year-tabs" class="year-tabs-bar"></div>
     <div class="search-wrap" style="margin-bottom:16px">
@@ -1006,9 +1020,10 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       <div class="field">
         <label>N° Catálogo</label>
         <div class="field-wrap">
-          <input type="text" id="bd-catalogo" placeholder="Ej: 19088" oninput="bdAC('catalogo')" autocomplete="off">
+          <input type="text" id="bd-catalogo" placeholder="Ej: 19088" oninput="bdAC('catalogo');bdCheckCatalogoEnBD(this.value)" autocomplete="off">
           <div class="alta-ac-list" id="bd-ac-catalogo"></div>
         </div>
+        <div id="bd-cat-dup-warn" style="display:none;margin-top:5px;font-size:12px;font-weight:500;color:var(--red);background:var(--red-l);border:1px solid var(--red);border-radius:6px;padding:6px 10px;line-height:1.4"></div>
       </div>
       <div class="field">
         <label>N° Lote (ejemplo de este código)</label>
@@ -1678,7 +1693,6 @@ function setAltaFechaHoy() {
 }
 
 function renderAll() {
-  renderAlertasVencimiento();
   renderDashboard();
   renderConsulta();
 }
@@ -1775,319 +1789,326 @@ function renderYearTabs(containerId, currentYear, onSelectFn) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DASHBOARD
+// DASHBOARD v2
 // ═══════════════════════════════════════════════════════════════
-function setDashYear(año) { dashYear = año; renderDashboard(); }
-
-// Navega a Consultas filtrando por query (nombre o catálogo)
-// Filtro temporal del dashboard → Consultas (se limpia al navegar)
-let _dashFiltroSet = null; // Set de catálogos, o null
-let _dashFiltroLabel = '';
-let _dashFiltroEstado = 'todos'; // estado a filtrar en consultas
-
-function irAConsultasConFiltro(q) {
-  _dashFiltroSet = null;
-  consultaQuery = q.toLowerCase();
-  consultaYear  = 'todos';
-  consultaFilter = 'todos';
-  const input = document.getElementById('consulta-input');
-  if (input) input.value = q;
-  showPage('consultas');
+let dashProxDays = 60;
+let dashErroresYear = 'todos';
+function setProxDays(d) {
+  dashProxDays = d;
+  document.querySelectorAll('#prox-tabs .dash-seg-tab').forEach(t => t.classList.toggle('active', +t.dataset.d === d));
+  renderDashPanelProximos();
 }
 
-// Navega a Consultas mostrando solo los catálogos del Set, con banner informativo
-function irAConsultasConSet(cats, label, estado) {
-  _dashFiltroSet = new Set(cats.map(c => c.toUpperCase()));
-  _dashFiltroLabel = label;
-  _dashFiltroEstado = estado || 'todos';
-  consultaQuery = '';
-  consultaYear  = 'todos';
-  // vencido_vence se maneja en renderConsulta, no en consultaFilter
-  consultaFilter = (_dashFiltroEstado === 'vencido_vence' || _dashFiltroEstado === 'todos') ? 'todos' : _dashFiltroEstado;
-  const input = document.getElementById('consulta-input');
-  if (input) input.value = '';
-  showPage('consultas');
-}
-
-let _dashRange = 60;
-function _limpiarDashFiltro() {
-  _dashFiltroSet = null;
-  _dashFiltroLabel = '';
-  _dashFiltroEstado = 'todos';
-  consultaFilter = 'todos';
-  renderConsulta();
-}
-function dashSetRange(n, btn) {
-  _dashRange = n;
-  document.querySelectorAll('.dash-rpill').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  _dashRenderCal();
+function setErroresYear(y) {
+  dashErroresYear = y;
+  renderDashPanelErrores();
 }
 
 function renderDashboard() {
-  if (!stock || !stock.length) return;
-  renderYearTabs('dash-year-tabs', dashYear, 'setDashYear');
-  const filtered = dashYear === 'todos' ? stock : stock.filter(i => getAnio(i) === dashYear);
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const diff = d => Math.round((d - hoy) / 86400000);
-  const fmtD = d => d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit', year:'numeric'});
-  const fmtS = d => d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
-  const ARR = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--dim);opacity:0;transition:.15s" class="dash-row-arr"><polyline points="9 18 15 12 9 6"/></svg>`;
-
-  // ── VENCIMIENTOS ────────────────────────────────
-  const vencItems = filtered
-    .filter(i => { const e = getEstado(i); return e === 'vencido' || e === 'vence'; })
-    .sort((a, b) => parseFecha(a.vencimiento) - parseFecha(b.vencimiento));
-
-  document.getElementById('stat-vencido').textContent = filtered.filter(i => getEstado(i) === 'vencido').length;
-  document.getElementById('stat-vence').textContent   = filtered.filter(i => getEstado(i) === 'vence').length;
-  document.getElementById('dash-venc-count').textContent = vencItems.length + ' insumo' + (vencItems.length !== 1 ? 's' : '');
-
-  const LIMIT = 10;
-  window._dashVerMasMap = {};
-  let _vmIdx = 0;
-  const _verRestanteBtn = (cats, label, n, estado) => {
-    const key = 'vm_' + (_vmIdx++);
-    window._dashVerMasMap[key] = {cats, label, estado: estado||'todos'};
-    return `<div class="dash-ver-mas" onclick="irAConsultasConSet(window._dashVerMasMap['${key}'].cats, window._dashVerMasMap['${key}'].label, window._dashVerMasMap['${key}'].estado)">Ver los ${n} restantes →</div>`;
-  };
-
-  const vencVisible = vencItems.slice(0, LIMIT);
-  const vencRest = vencItems.slice(LIMIT);
-  const vencCatsRest = [...new Set(vencRest.map(i => stripAI(i.catalogo||'')))];
-  document.getElementById('dash-venc-list').innerHTML = vencItems.length
-    ? vencVisible.map(i => {
-        const d = parseFecha(i.vencimiento);
-        const n = diff(d);
-        const cls = n < 0 ? 'vencido' : n <= 14 ? 'critico' : 'proximo';
-        const label = n < 0 ? `Venció hace ${Math.abs(n)}d` : n === 0 ? 'Vence hoy' : `Vence en ${n}d`;
-        return `<div class="dash-venc-item" onclick="irAConsultasConFiltro('${htmlEsc(i.catalogo)}')" onmouseenter="this.querySelector('.dash-row-arr').style.opacity='1'" onmouseleave="this.querySelector('.dash-row-arr').style.opacity='0'">
-          <div class="dash-venc-bar ${cls}"></div>
-          <div class="dash-venc-body">
-            <div class="dash-venc-nombre">${htmlEsc(i.nombre)}</div>
-            <div class="dash-venc-meta"><span>${fmtD(d)}</span><span style="font-family:'IBM Plex Mono',monospace">${htmlEsc(i.lote)}</span></div>
-          </div>
-          <div class="dash-venc-badge ${cls}">${label}</div>
-          ${ARR}
-        </div>`;
-      }).join('') + (vencRest.length ? _verRestanteBtn(vencCatsRest, `Vencidos y por vencer (${vencRest.length} más)`, vencRest.length, 'vencido_vence') : '')
-    : '<div class="dash-empty">Sin vencidos ni por vencer ✓</div>';
-
-  // ── BAJO STOCK / SIN STOCK ──────────────────────
-  // Agrupa disponibles por catálogo
-  const dispByCat = {};
-  const bajaByCat = {};
-  filtered.forEach(i => {
-    const cat = stripAI(i.catalogo || '');
-    if (!cat) return;
-    const est = getEstado(i);
-    if (est === 'disponible' || est === 'vence') {
-      dispByCat[cat] = dispByCat[cat] || {nombre: i.nombre, cat, unidades: 0};
-      dispByCat[cat].unidades++;
-    }
-    if (est === 'baja' || est === 'bajo') {
-      const fin = parseFecha(i.finConsumo);
-      const diasDesde = diff(fin) * -1; // positivo = hace N días
-      if (!bajaByCat[cat] || diasDesde < bajaByCat[cat].diasDesde) {
-        bajaByCat[cat] = {nombre: i.nombre, cat, diasDesde, fin};
-      }
-    }
-  });
-
-  const LIMITE_DIAS = 60;
-  const ssItems = [];
-  // Sin stock: cat en bajaByCat, no en dispByCat, ultima baja <= 60d
-  Object.entries(bajaByCat).forEach(([cat, info]) => {
-    if (!dispByCat[cat] && info.diasDesde <= LIMITE_DIAS) {
-      ssItems.push({...info, tipo:'sinstock', unidades:0});
-    }
-  });
-  // Stock bajo: 1-2 unidades, ultima baja <= 60d
-  Object.entries(dispByCat).forEach(([cat, info]) => {
-    if (info.unidades <= 2 && bajaByCat[cat] && bajaByCat[cat].diasDesde <= LIMITE_DIAS) {
-      ssItems.push({...info, tipo:'bajo', diasDesde: bajaByCat[cat].diasDesde});
-    }
-  });
-  ssItems.sort((a,b) => (a.tipo === b.tipo ? a.diasDesde - b.diasDesde : a.tipo === 'sinstock' ? -1 : 1));
-
-  document.getElementById('dash-ss-count').textContent = ssItems.length + ' insumo' + (ssItems.length !== 1 ? 's' : '');
-
-  const sinstock = ssItems.filter(s => s.tipo === 'sinstock');
-  const bajo     = ssItems.filter(s => s.tipo === 'bajo');
-  const ubLabel  = n => n === 0 ? 'hoy' : `hace ${n}d`;
-
-  // Límite de 10 entre las dos secciones
-  const ssVisible = ssItems.slice(0, LIMIT);
-  const ssRest    = ssItems.slice(LIMIT);
-  const sinstockV = ssVisible.filter(s => s.tipo === 'sinstock');
-  const bajoV     = ssVisible.filter(s => s.tipo === 'bajo');
-  const ssCatsRest = [...new Set(ssRest.map(s => s.cat))];
-
-  let ssHtml = '';
-  if (sinstockV.length) {
-    ssHtml += `<div class="dash-ss-divider">Sin stock · ${sinstock.length}</div>`;
-    ssHtml += sinstockV.map(s => `<div class="dash-ss-item" onclick="irAConsultasConFiltro('${htmlEsc(s.cat)}')" onmouseenter="this.querySelector('.dash-row-arr').style.opacity='1'" onmouseleave="this.querySelector('.dash-row-arr').style.opacity='0'">
-      <div class="dash-ss-body">
-        <div class="dash-ss-nombre">${htmlEsc(s.nombre)}</div>
-        <div class="dash-ss-cat">${htmlEsc(s.cat)}</div>
-      </div>
-      <div class="dash-ss-right">
-        <div class="dash-ss-badge sinstock">0 unidades</div>
-        <div class="dash-ss-ub">Última baja ${ubLabel(s.diasDesde)}</div>
-      </div>
-      ${ARR}
-    </div>`).join('');
-  }
-  if (bajoV.length) {
-    ssHtml += `<div class="dash-ss-divider">Stock bajo · ${bajo.length}</div>`;
-    ssHtml += bajoV.map(s => `<div class="dash-ss-item" onclick="irAConsultasConFiltro('${htmlEsc(s.cat)}')" onmouseenter="this.querySelector('.dash-row-arr').style.opacity='1'" onmouseleave="this.querySelector('.dash-row-arr').style.opacity='0'">
-      <div class="dash-ss-body">
-        <div class="dash-ss-nombre">${htmlEsc(s.nombre)}</div>
-        <div class="dash-ss-cat">${htmlEsc(s.cat)}</div>
-      </div>
-      <div class="dash-ss-right">
-        <div class="dash-ss-badge bajo">${s.unidades} unidad${s.unidades > 1 ? 'es' : ''}</div>
-        <div class="dash-ss-ub">Última baja ${ubLabel(s.diasDesde)}</div>
-      </div>
-      ${ARR}
-    </div>`).join('');
-  }
-  if (ssRest.length) ssHtml += _verRestanteBtn(ssCatsRest, `Alertas de bajo stock (${ssRest.length} más)`, ssRest.length, 'disponible');
-  document.getElementById('dash-ss-list').innerHTML = ssHtml || '<div class="dash-empty">Sin alertas de stock ✓</div>';
-
-  // ── ERRORES DE CARGA ────────────────────────────
-  const errores = [];
-
-  // 1. Fechas imposibles (vencimiento)
-  const YEAR_MIN = 2000, YEAR_MAX = new Date().getFullYear() + 15;
-  filtered.forEach(i => {
-    if (!i.vencimiento || i.vencimiento.toUpperCase() === 'NA') return;
-    const d = parseFecha(i.vencimiento);
-    if (!d || isNaN(d)) return;
-    const y = d.getFullYear();
-    if (y < YEAR_MIN || y > YEAR_MAX) {
-      errores.push({tipo:'fecha', icon:'📅', nombre: i.nombre, catalogo: i.catalogo,
-        desc: `Fecha de vencimiento <code>${htmlEsc(i.vencimiento)}</code> parece incorrecta (año ${y})`, badge:'FECHA'});
-    }
-  });
-
-  // 2. Fecha inicio > fecha fin (error lógico)
-  filtered.forEach(i => {
-    if (!i.inicioConsumo || !i.finConsumo) return;
-    if (i.inicioConsumo.toUpperCase() === 'NA' || i.finConsumo.toUpperCase() === 'NA') return;
-    const ini = parseFecha(i.inicioConsumo);
-    const fin = parseFecha(i.finConsumo);
-    if (ini && fin && !isNaN(ini) && !isNaN(fin) && fin < ini) {
-      errores.push({tipo:'logico', icon:'⚠️', nombre: i.nombre, catalogo: i.catalogo,
-        desc: `Fin de uso <code>${htmlEsc(i.finConsumo)}</code> es anterior al inicio <code>${htmlEsc(i.inicioConsumo)}</code>`, badge:'LÓGICO'});
-    }
-  });
-
-  // 3. Inconsistencias: mismo nombre → múltiples catálogos distintos
-  const catByNombre = {};
-  filtered.forEach(i => {
-    const n = (i.nombre || '').trim().toLowerCase();
-    const c = stripAI(i.catalogo || '').trim().toUpperCase();
-    if (!n || !c) return;
-    if (!catByNombre[n]) catByNombre[n] = new Set();
-    catByNombre[n].add(c);
-  });
-  Object.entries(catByNombre).forEach(([nombre, cats]) => {
-    if (cats.size > 1) {
-      const sample = filtered.find(i => i.nombre.trim().toLowerCase() === nombre);
-      errores.push({tipo:'incons', icon:'🔀', nombre: sample?.nombre || nombre, catalogo: sample?.catalogo || '',
-        desc: `${cats.size} catálogos distintos para este insumo: <code>${[...cats].join('</code>, <code>')}</code>`, badge:'CATÁLOGO'});
-    }
-  });
-
-  // 4. Mismo catálogo → múltiples nombres distintos
-  const nombreByCat = {};
-  filtered.forEach(i => {
-    const c = stripAI(i.catalogo || '').trim().toUpperCase();
-    const n = (i.nombre || '').trim();
-    if (!c || !n) return;
-    if (!nombreByCat[c]) nombreByCat[c] = new Set();
-    nombreByCat[c].add(n);
-  });
-  Object.entries(nombreByCat).forEach(([cat, nombres]) => {
-    if (nombres.size > 1) {
-      const sample = filtered.find(i => stripAI(i.catalogo||'').trim().toUpperCase() === cat);
-      errores.push({tipo:'incons', icon:'🔀', nombre: [...nombres][0], catalogo: sample?.catalogo || cat,
-        desc: `Catálogo <code>${cat}</code> tiene ${nombres.size} nombres distintos: <code>${[...nombres].join('</code>, <code>')}</code>`, badge:'NOMBRE'});
-    }
-  });
-
-  document.getElementById('stat-errores').textContent = errores.length;
-  document.getElementById('dash-err-count').textContent = errores.length + ' detectado' + (errores.length !== 1 ? 's' : '');
-
-  const errVisible = errores.slice(0, LIMIT);
-  const errRest    = errores.slice(LIMIT);
-  const errCatsRest = [...new Set(errRest.map(e => stripAI(e.catalogo || e.nombre)))];
-  document.getElementById('dash-err-list').innerHTML = errores.length
-    ? errVisible.map(e => `<div class="dash-err-item" onclick="irAConsultasConFiltro('${htmlEsc(e.catalogo || e.nombre)}')" onmouseenter="this.querySelector('.dash-row-arr').style.opacity='1'" onmouseleave="this.querySelector('.dash-row-arr').style.opacity='0'" title="Click para ver en Consultas">
-        <div class="dash-err-icon ${e.tipo}">${e.icon}</div>
-        <div class="dash-err-body">
-          <div class="dash-err-nombre">${htmlEsc(e.nombre)}</div>
-          <div class="dash-err-desc">${e.desc}</div>
-        </div>
-        <div class="dash-err-badge ${e.tipo}">${e.badge}</div>
-        ${ARR}
-      </div>`).join('') + (errRest.length ? _verRestanteBtn(errCatsRest, `Posibles errores de carga (${errRest.length} más)`, errRest.length, 'todos') : '')
-    : '<div class="dash-empty">Sin errores detectados ✓</div>';
-
-  // ── CALENDARIO ──────────────────────────────────
-  _dashRenderCal();
+  renderDashKPIs();
+  renderDashPanelVencidos();
+  renderDashPanelProximos();
+  renderDashPanelStock();
+  renderDashPanelErrores();
 }
 
-function _dashRenderCal() {
-  if (!stock || !stock.length) return;
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const diff = d => Math.round((d - hoy) / 86400000);
-  const fmtS = d => d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
-  const filtered = dashYear === 'todos' ? stock : stock.filter(i => getAnio(i) === dashYear);
+// ── Navegar a un ítem específico en Consultas ─────────────────
+function goToItemInConsultas(itemId) {
+  // Limpiar filtros actuales
+  consultaQuery = '';
+  consultaFilter = 'todos';
+  consultaYear = 'todos';
+  fpFiltros.estados.clear(); fpFiltros.catalogos.clear();
+  fpFiltros.nombres.clear(); fpFiltros.lotes.clear();
+  fpFiltros.temps.clear();
+  fpFiltros.fechaDesde = ''; fpFiltros.fechaHasta = '';
+  fpFiltros.vencDesde  = ''; fpFiltros.vencHasta  = '';
+  const inp = document.getElementById('consulta-input');
+  if (inp) inp.value = '';
+  // Activar filtro por id único
+  dashFocusItemId = itemId;
+  showPage('consultas');
+}
 
-  const proximos = filtered
-    .filter(i => { const e = getEstado(i); return (e === 'vence' || e === 'disponible') && i.vencimiento && i.vencimiento.toUpperCase() !== 'NA'; })
-    .map(i => ({ nombre: i.nombre, lote: i.lote, catalogo: i.catalogo, d: parseFecha(i.vencimiento) }))
-    .filter(p => { const n = diff(p.d); return n >= 0 && n <= _dashRange; })
-    .sort((a, b) => a.d - b.d);
+let dashFocusItemId = null;
 
-  const byMonth = {};
-  proximos.forEach(p => {
-    const key = p.d.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
-    if (!byMonth[key]) byMonth[key] = [];
-    byMonth[key].push(p);
-  });
+// ── KPIs ──────────────────────────────────────────────────────
+function renderDashKPIs() {
+  const vencidos = stock.filter(i => i._estado === 'vencido');
+  document.getElementById('kpi-vencidos').textContent = vencidos.length;
 
-  const maxN = Math.max(...Object.values(byMonth).map(a => a.length), 1);
-  const wrap = document.getElementById('dash-cal-wrap');
+  const stockBajo = calcDashStockBajo();
+  const totalStockBajo = stockBajo.sinStock.length + stockBajo.stockBajo.length;
+  document.getElementById('kpi-stock-bajo').textContent = totalStockBajo;
 
-  if (!proximos.length) {
-    wrap.innerHTML = '<div class="dash-empty">Sin vencimientos en este período</div>';
+  const errores = calcDashErrores();
+  const totalErr = errores.fecha.length + errores.logico.length + errores.catalogo.length + errores.nombre.length;
+  document.getElementById('kpi-errores').textContent = totalErr;
+}
+
+// ── Panel 1: Vencidos y por vencer ────────────────────────────
+function renderDashPanelVencidos() {
+  const hoy = Date.now();
+  const hace90 = hoy - 90 * 86400000;
+  const items = stock
+    .filter(i => {
+      if (i._estado === 'vence') return true;
+      if (i._estado === 'vencido') return i._vencTs && i._vencTs >= hace90;
+      return false;
+    })
+    .sort((a,b) => {
+      // vencidos primero (más reciente primero), luego por vencer (más próximo primero)
+      if (a._estado === 'vencido' && b._estado !== 'vencido') return -1;
+      if (b._estado === 'vencido' && a._estado !== 'vencido') return 1;
+      return (a._vencTs||0) - (b._vencTs||0);
+    });
+
+  document.getElementById('panel-count-venc').textContent = items.length + ' insumos';
+
+  document.getElementById('panel-vencidos').innerHTML = items.length
+    ? items.map(i => {
+        const diffDays = Math.round((hoy - (i._vencTs||hoy)) / 86400000);
+        const daysToVenc = Math.round(((i._vencTs||hoy) - hoy) / 86400000);
+        const badge = i._estado === 'vencido'
+          ? `<span class="dash-badge-red">Venció hace ${diffDays}d</span>`
+          : daysToVenc <= 14
+            ? `<span class="dash-badge-red">Vence en ${daysToVenc}d</span>`
+            : `<span class="dash-badge-amber">Vence en ${daysToVenc}d</span>`;
+        return `<div class="dash-row" onclick="goToItemInConsultas(${i.id})">
+          <div class="dash-row-left">
+            <div class="dash-row-name">${htmlEsc(i.nombre)}</div>
+            <div class="dash-row-meta">${fmtFecha(i.fecha)} · ${htmlEsc(i.lote)}</div>
+          </div>
+          ${badge}
+          <span class="dash-row-arrow">→</span>
+        </div>`;
+      }).join('')
+    : '<div style="padding:28px;text-align:center;color:var(--dim);font-size:13px">Sin vencimientos</div>';
+}
+
+// ── Panel 2: Próximos vencimientos ────────────────────────────
+function renderDashPanelProximos() {
+  const hoy = Date.now();
+  const limit = hoy + dashProxDays * 86400000;
+  const items = stock
+    .filter(i => i._vencTs && i._vencTs > hoy && i._vencTs <= limit && i._estado !== 'baja')
+    .sort((a,b) => (a._vencTs||0) - (b._vencTs||0));
+
+  if (!items.length) {
+    document.getElementById('panel-proximos').innerHTML =
+      `<div style="padding:28px;text-align:center;color:var(--dim);font-size:13px">Sin vencimientos en ${dashProxDays} días</div>`;
     return;
   }
 
-  wrap.innerHTML = Object.entries(byMonth).map(([mes, items]) => {
-    const rows = items.map(p => {
-      const n = diff(p.d);
-      const cls = n <= 7 ? 'd7' : n <= 30 ? 'd30' : n <= 60 ? 'd60' : 'd90';
-      const label = n === 0 ? 'hoy' : n === 1 ? 'mañana' : n + 'd';
-      return `<div class="dash-cal-item" onclick="irAConsultasConFiltro('${htmlEsc(p.catalogo)}')">
-        <div class="dash-cal-fecha">${fmtS(p.d)}</div>
-        <div class="dash-cal-nombre">${htmlEsc(p.nombre)}</div>
-        <div class="dash-cal-lote">${htmlEsc(p.lote)}</div>
-        <div class="dash-cal-dias ${cls}">${label}</div>
+  // Agrupar por mes
+  const byMes = {};
+  for (const i of items) {
+    const d = new Date(i._vencTs);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('es-AR', {month:'long',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase());
+    if (!byMes[key]) byMes[key] = { label, items:[] };
+    byMes[key].items.push(i);
+  }
+
+  let html = '';
+  for (const key of Object.keys(byMes).sort()) {
+    const mes = byMes[key];
+    html += `<div class="dash-mes-label">${mes.label} <span class="dash-mes-count">${mes.items.length}</span></div>`;
+    for (const i of mes.items) {
+      const d   = new Date(i._vencTs);
+      const day = d.getDate();
+      const daysLeft = Math.round((i._vencTs - hoy) / 86400000);
+      const bc  = daysLeft <= 14 ? 'dash-badge-red' : daysLeft <= 30 ? 'dash-badge-amber' : 'dash-badge-blue';
+      html += `<div class="dash-row" onclick="goToItemInConsultas(${i.id})">
+        <div class="dash-prox-day">${day}</div>
+        <div class="dash-row-left" style="margin-left:10px">
+          <div class="dash-row-name">${htmlEsc(i.nombre)}</div>
+          <div class="dash-row-meta">${htmlEsc(i.lote)}</div>
+        </div>
+        <span class="${bc}">${daysLeft}d</span>
+        <span class="dash-row-arrow">→</span>
       </div>`;
-    }).join('');
-    return `<div class="dash-cal-month">
-      <div class="dash-cal-month-hdr">
-        <div class="dash-cal-month-name">${mes}</div>
-        <div class="dash-cal-month-bar"><div class="dash-cal-month-fill" style="width:${(items.length/maxN*100).toFixed(0)}%"></div></div>
-        <div class="dash-cal-month-n">${items.length}</div>
-      </div>
-      ${rows}
-    </div>`;
-  }).join('');
+    }
+  }
+  document.getElementById('panel-proximos').innerHTML = html;
+}
+
+// ── Panel 3: Bajo stock ───────────────────────────────────────
+// Lógica: agrupa por catálogo normalizado.
+// Incluye grupo si: su última baja fue hace < 60 días Y quedan 0 o 1-2 unidades disponibles.
+function calcDashStockBajo() {
+  const hoy = Date.now();
+  const VENTANA = 60 * 86400000;
+
+  // Agrupar todos los items por catalogo normalizado
+  const grupos = {};
+  for (const i of stock) {
+    const key = stripAI(i.catalogo).toLowerCase().trim() || i.nombre.toLowerCase().trim();
+    if (!grupos[key]) grupos[key] = { catalogo: i.catalogo, nombre: i.nombre, items: [] };
+    grupos[key].items.push(i);
+  }
+
+  const sinStock = [], stockBajo = [];
+
+  for (const key of Object.keys(grupos)) {
+    const g = grupos[key];
+    const bajas = g.items.filter(i => i._estado === 'baja' && i._finTs > 0);
+    if (!bajas.length) continue;
+    const ultimaBaja = Math.max(...bajas.map(i => i._finTs));
+    if (hoy - ultimaBaja > VENTANA) continue; // última baja hace más de 60 días → ignorar
+
+    const disponibles = g.items.filter(i => i._estado !== 'baja');
+    const count = disponibles.length;
+    const diasUltimaBaja = Math.round((hoy - ultimaBaja) / 86400000);
+    const metaStr = diasUltimaBaja === 0 ? 'última baja hoy' : `última baja hace ${diasUltimaBaja}d`;
+    // Tomar un ítem representante del grupo (primero disponible o primero de la lista)
+    const rep = disponibles[0] || g.items[0];
+
+    const entry = { id: rep.id, nombre: g.nombre, catalogo: g.catalogo, count, metaStr };
+    if (count === 0) sinStock.push(entry);
+    else if (count <= 2) stockBajo.push(entry);
+  }
+
+  sinStock.sort((a,b) => a.nombre.localeCompare(b.nombre));
+  stockBajo.sort((a,b) => a.count - b.count || a.nombre.localeCompare(b.nombre));
+  return { sinStock, stockBajo };
+}
+
+function renderDashPanelStock() {
+  const { sinStock, stockBajo } = calcDashStockBajo();
+  const total = sinStock.length + stockBajo.length;
+  document.getElementById('panel-count-stock').textContent = total + ' insumos';
+
+  let html = '';
+  if (sinStock.length) {
+    html += `<div class="dash-list-section">Sin stock <span class="dash-list-section-count">${sinStock.length}</span></div>`;
+    html += sinStock.map(e => `
+      <div class="dash-row" onclick="goToItemInConsultas(${e.id})">
+        <div class="dash-row-left">
+          <div class="dash-row-name">${htmlEsc(e.nombre)}</div>
+          <div class="dash-row-meta">${htmlEsc(e.catalogo)} · ${e.metaStr}</div>
+        </div>
+        <span class="dash-badge-zero">0 unidades</span>
+        <span class="dash-row-arrow">→</span>
+      </div>`).join('');
+  }
+  if (stockBajo.length) {
+    html += `<div class="dash-list-section">Stock bajo · ≤2 unidades <span class="dash-list-section-count">${stockBajo.length}</span></div>`;
+    html += stockBajo.map(e => `
+      <div class="dash-row" onclick="goToItemInConsultas(${e.id})">
+        <div class="dash-row-left">
+          <div class="dash-row-name">${htmlEsc(e.nombre)}</div>
+          <div class="dash-row-meta">${htmlEsc(e.catalogo)} · ${e.metaStr}</div>
+        </div>
+        <span class="dash-badge-low">${e.count} unidad${e.count===1?'':'es'}</span>
+        <span class="dash-row-arrow">→</span>
+      </div>`).join('');
+  }
+  if (!html) html = '<div style="padding:28px;text-align:center;color:var(--dim);font-size:13px">Sin alertas de stock</div>';
+  document.getElementById('panel-stock').innerHTML = html;
+}
+
+// ── Panel 4: Errores de carga ─────────────────────────────────
+function calcDashErrores() {
+  const errFecha = [], errLogico = [], errCatalogo = [], errNombre = [];
+  const hoy = new Date();
+  const MIN_YEAR = 2000, MAX_YEAR = hoy.getFullYear() + 10;
+
+  // Frecuencias: por nombre → catálogo más común; por catálogo → nombre más común
+  const freqCatPorNombre = {}, freqNombrePorCat = {};
+  for (const i of stock) {
+    const nom = i.nombre.trim(), cat = stripAI(i.catalogo).trim().toLowerCase();
+    if (nom && cat) {
+      if (!freqCatPorNombre[nom]) freqCatPorNombre[nom] = {};
+      freqCatPorNombre[nom][cat] = (freqCatPorNombre[nom][cat]||0) + 1;
+      if (!freqNombrePorCat[cat]) freqNombrePorCat[cat] = {};
+      freqNombrePorCat[cat][nom] = (freqNombrePorCat[cat][nom]||0) + 1;
+    }
+  }
+  // Obtener el valor mayoritario
+  const majority = obj => Object.entries(obj).sort((a,b)=>b[1]-a[1])[0];
+
+  for (const i of stock) {
+    // FECHA: vencimiento con año imposible
+    if (i._vencTs > 0) {
+      const yr = new Date(i._vencTs).getFullYear();
+      if (yr < MIN_YEAR || yr > MAX_YEAR) {
+        errFecha.push({ i, desc: `Vencimiento ${fmtFecha(i.vencimiento)} — año ${yr < MIN_YEAR ? 'imposible' : 'muy lejano'}` });
+        continue;
+      }
+    }
+    // LÓGICO: fin anterior a inicio
+    if (i._inicioTs > 0 && i._finTs > 0 && i._finTs < i._inicioTs) {
+      errLogico.push({ i, desc: `Fin ${fmtFecha(i.finConsumo)} anterior al inicio ${fmtFecha(i.inicioConsumo)}` });
+      continue;
+    }
+    // CATÁLOGO: distinto al más frecuente para este nombre
+    const nom = i.nombre.trim();
+    const myCat = stripAI(i.catalogo).trim().toLowerCase();
+    if (nom && myCat && freqCatPorNombre[nom]) {
+      const [majCat, majCount] = majority(freqCatPorNombre[nom]);
+      const total = Object.values(freqCatPorNombre[nom]).reduce((a,b)=>a+b,0);
+      if (majCat !== myCat && majCount / total >= 0.7 && total >= 3) {
+        errCatalogo.push({ i, desc: `Cat. <strong>${htmlEsc(stripAI(i.catalogo))}</strong> — mayoría usa <strong>${htmlEsc(majCat)}</strong> (${majCount}/${total})` });
+        continue;
+      }
+    }
+    // NOMBRE: distinto al más frecuente para este catálogo
+    const cat = stripAI(i.catalogo).trim().toLowerCase();
+    if (cat && nom && freqNombrePorCat[cat]) {
+      const [majNom, majCount] = majority(freqNombrePorCat[cat]);
+      const total = Object.values(freqNombrePorCat[cat]).reduce((a,b)=>a+b,0);
+      if (majNom !== nom && majCount / total >= 0.7 && total >= 3) {
+        errNombre.push({ i, desc: `Nombre diverge — mayoría cargada como <strong>${htmlEsc(majNom)}</strong>` });
+      }
+    }
+  }
+  return { fecha: errFecha, logico: errLogico, catalogo: errCatalogo, nombre: errNombre };
+}
+
+function renderDashPanelErrores() {
+  // ── Tabs de año: construir dinámicamente ─────────────────────
+  const años = getAnios().slice().reverse(); // más reciente primero
+  const tabsEl = document.getElementById('errores-year-tabs');
+  if (tabsEl) {
+    tabsEl.innerHTML = ['todos', ...años].map(a =>
+      `<button class="dash-seg-tab${dashErroresYear===a?' active':''}" style="font-size:10px;padding:3px 8px" onclick="setErroresYear('${a}')">${a === 'todos' ? 'TODOS' : a}</button>`
+    ).join('');
+  }
+
+  // ── Calcular errores y filtrar por año ───────────────────────
+  const err = calcDashErrores();
+  const filterYear = e => dashErroresYear === 'todos' || getAnio(e.i) === dashErroresYear;
+  const fe = err.fecha.filter(filterYear);
+  const fl = err.logico.filter(filterYear);
+  const fc = err.catalogo.filter(filterYear);
+  const fn = err.nombre.filter(filterYear);
+
+  const total = fe.length + fl.length + fc.length + fn.length;
+  document.getElementById('panel-count-errores').textContent = total + ' detectados';
+
+  const seccion = (label, items, tipo, icon) => {
+    if (!items.length) return '';
+    const rows = items.map(({i, desc}) => `
+      <div class="dash-row" onclick="goToItemInConsultas(${i.id})">
+        <div class="dash-err-icon ${tipo}">${icon}</div>
+        <div class="dash-err-body">
+          <div class="dash-err-name">${htmlEsc(i.nombre)}</div>
+          <div class="dash-err-desc">${desc}</div>
+        </div>
+        <span class="dash-badge-tag dash-tag-${tipo}">${tipo.toUpperCase()}</span>
+        <span class="dash-row-arrow">→</span>
+      </div>`).join('');
+    return `<div class="dash-list-section">${label} <span class="dash-list-section-count">${items.length}</span></div>${rows}`;
+  };
+
+  let html = seccion('Fechas imposibles', fe, 'fecha', '📅')
+           + seccion('Fin anterior al inicio', fl, 'logico', '⚠️')
+           + seccion('Catálogo inusual vs grupo', fc, 'cat', '🗂️')
+           + seccion('Nombre inusual vs grupo', fn, 'nombre', '✏️');
+
+  if (!html) html = '<div style="padding:28px;text-align:center;color:var(--dim);font-size:13px">Sin errores detectados</div>';
+  document.getElementById('panel-errores').innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2536,16 +2557,19 @@ function sortConsulta(col) {
 }
 
 function renderConsulta() {
-  // Banner del dashboard
-  const bannerEl = document.getElementById('consulta-dash-banner');
-  const bannerLabel = document.getElementById('consulta-dash-banner-label');
-  if (_dashFiltroSet && bannerEl) {
-    bannerLabel.textContent = _dashFiltroLabel;
-    bannerEl.style.display = 'flex';
-  } else if (bannerEl) {
-    bannerEl.style.display = 'none';
+  // ── Si venimos del dashboard con un ítem específico ───────────
+  if (dashFocusItemId !== null) {
+    const focusId = dashFocusItemId;
+    dashFocusItemId = null;
+    const item = stock.find(i => i.id === focusId);
+    if (item) {
+      // Mostrar solo ese ítem: pre-fill búsqueda con lote (único por ítem)
+      consultaQuery = item._lot || item._cat || item._nombre;
+      const inp = document.getElementById('consulta-input');
+      if (inp) inp.value = item.lote || item.catalogo || item.nombre;
+      consultaYear = item.sheetName || 'todos';
+    }
   }
-
   renderYearTabs('consulta-year-tabs', consultaYear, 'setConsultaYear');
   let items = consultaYear==='todos' ? stock : stock.filter(i=>getAnio(i)===consultaYear);
   if (consultaQuery) items=items.filter(i=>
@@ -2553,8 +2577,6 @@ function renderConsulta() {
     i._cat.includes(consultaQuery)||
     i._lot.includes(consultaQuery));
   if (consultaFilter!=='todos') items=items.filter(i=>getEstado(i)===consultaFilter);
-  if (_dashFiltroEstado === 'vencido_vence') items=items.filter(i=>{ const e=getEstado(i); return e==='vencido'||e==='vence'; });
-  if (_dashFiltroSet) items=items.filter(i=>_dashFiltroSet.has(stripAI(i.catalogo||'').toUpperCase()));
 
   // ── Filtros personalizados ──────────────────────────────────
   if (fpFiltros.estados.size)   items = items.filter(i => fpFiltros.estados.has(getEstado(i)));
@@ -3572,45 +3594,76 @@ function fdGetOptions(field) {
   return out.sort();
 }
 
+function fdGetSetKey(field) {
+  return field === 'catalogo' ? 'catalogos' : field === 'nombre' ? 'nombres' : 'lotes';
+}
+
 function fdSearchChips(field) {
-  const q    = (document.getElementById(`fd-search-${field}`)?.value || '').trim().toLowerCase();
+  const inp  = document.getElementById(`fd-search-${field}`);
   const drop = document.getElementById(`fd-drop-${field}`);
-  if (!drop) return;
-  const setKey = field === 'catalogo' ? 'catalogos' : field === 'nombre' ? 'nombres' : 'lotes';
-  const opts = fdGetOptions(field).filter(v => !fpFiltros[setKey].has(v) && (!q || v.toLowerCase().includes(q)));
+  if (!drop || !inp) return;
+  const q      = inp.value.trim().toLowerCase();
+  const setKey = fdGetSetKey(field);
+  const opts   = fdGetOptions(field).filter(v => !q || v.toLowerCase().includes(q));
   if (!opts.length) { drop.classList.remove('show'); return; }
   const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  drop.innerHTML = opts.slice(0, 8).map(v => {
+  drop.innerHTML = opts.slice(0, 10).map(v => {
+    const selected = fpFiltros[setKey].has(v);
     const hl = q ? v.replace(new RegExp(`(${esc})`, 'gi'), '<mark>$1</mark>') : v;
-    return `<div class="fd-drop-item" onmousedown="fdAddChip('${field}','${v.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"> ${hl}</div>`;
+    const vEsc = v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="fd-drop-item${selected?' is-selected':''}" onmousedown="fdToggleChip(event,'${field}','${vEsc}')">
+      <div class="fd-item-check"><svg width="10" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,8.5 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span class="fd-item-label">${hl}</span>
+    </div>`;
   }).join('');
   drop.classList.add('show');
 }
 
-function fdAddChip(field, val) {
-  const setKey = field === 'catalogo' ? 'catalogos' : field === 'nombre' ? 'nombres' : 'lotes';
-  fpFiltros[setKey].add(val);
-  const inp = document.getElementById(`fd-search-${field}`);
-  if (inp) inp.value = '';
-  document.getElementById(`fd-drop-${field}`)?.classList.remove('show');
+function fdToggleChip(e, field, val) {
+  e.preventDefault(); // keep focus on input so dropdown stays open
+  const setKey = fdGetSetKey(field);
+  if (fpFiltros[setKey].has(val)) fpFiltros[setKey].delete(val);
+  else fpFiltros[setKey].add(val);
+  fdSearchChips(field); // re-render dropdown with updated checkmarks
   fdRenderChips(field);
+  fdUpdateBadge(field);
+  aplicarFiltroPersonalizado();
+}
+
+function fdAddChip(field, val) {
+  // kept for backwards compat — routes to toggle
+  const setKey = fdGetSetKey(field);
+  fpFiltros[setKey].add(val);
+  fdSearchChips(field);
+  fdRenderChips(field);
+  fdUpdateBadge(field);
   aplicarFiltroPersonalizado();
 }
 
 function fdRemoveChip(field, val) {
-  const setKey = field === 'catalogo' ? 'catalogos' : field === 'nombre' ? 'nombres' : 'lotes';
-  fpFiltros[setKey].delete(val);
+  fpFiltros[fdGetSetKey(field)].delete(val);
   fdRenderChips(field);
+  fdSearchChips(field); // re-render dropdown to uncheck removed item
+  fdUpdateBadge(field);
   aplicarFiltroPersonalizado();
 }
 
 function fdRenderChips(field) {
-  const setKey    = field === 'catalogo' ? 'catalogos' : field === 'nombre' ? 'nombres' : 'lotes';
+  const setKey    = fdGetSetKey(field);
   const container = document.getElementById(`fd-chips-${field}`);
   if (!container) return;
-  container.innerHTML = [...fpFiltros[setKey]].map(v =>
-    `<div class="fd-chip selected">${htmlEsc(v)} <button onmousedown="fdRemoveChip('${field}','${v.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">×</button></div>`
-  ).join('');
+  container.innerHTML = [...fpFiltros[setKey]].map(v => {
+    const vEsc = v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="fd-chip">${htmlEsc(v)}<span class="fd-chip-x" onmousedown="event.preventDefault();fdRemoveChip('${field}','${vEsc}')">×</span></div>`;
+  }).join('');
+}
+
+function fdUpdateBadge(field) {
+  const badge = document.getElementById(`badge-${field}`);
+  if (!badge) return;
+  const count = fpFiltros[fdGetSetKey(field)].size;
+  badge.textContent = count;
+  badge.classList.toggle('show', count > 0);
 }
 
 function fdToggleTempChip(el) {
@@ -3675,7 +3728,9 @@ function limpiarFiltroPersonalizado() {
   document.querySelectorAll('.filter-drawer .fd-chip').forEach(c => c.classList.remove('selected'));
   ['catalogo','nombre','lote'].forEach(f => {
     fdRenderChips(f);
+    fdUpdateBadge(f);
     const inp = document.getElementById(`fd-search-${f}`); if (inp) inp.value = '';
+    document.getElementById(`fd-drop-${f}`)?.classList.remove('show');
   });
   ['fd-fecha-desde','fd-fecha-hasta','fd-venc-desde','fd-venc-hasta'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
@@ -3936,8 +3991,21 @@ function extractLoteFromCode(newCode, storedCode, storedLote) {
   const loteIdx = codeUp.indexOf(loteClean);
   if (loteIdx < 0) return null;
 
+  // GUARD 1: el prefijo debe tener al menos 4 chars para ser significativo
+  // (evita que un prefijo vacío o muy corto haga match con cualquier código)
   const prefix = codeUp.substring(0, loteIdx);
+  if (prefix.length < 4) return null;
   if (!newUp.startsWith(prefix)) return null;
+
+  // GUARD 2: el sufijo después del lote también debe coincidir
+  const suffix = codeUp.substring(loteIdx + loteClean.length);
+  const newSuffix = newUp.substring(loteIdx + loteClean.length);
+  if (suffix.length > 0 && !newSuffix.startsWith(suffix)) return null;
+
+  // GUARD 3: la longitud total del nuevo código debe ser similar
+  // (tolera hasta 8 chars de diferencia por variación en longitud del lote)
+  const lenDiff = Math.abs(newUp.length - codeUp.length);
+  if (lenDiff > 8) return null;
 
   const extracted = newUp.substring(loteIdx, loteIdx + loteClean.length);
   if (extracted.length !== loteClean.length) return null;
@@ -4023,22 +4091,47 @@ function processBDBarcodeCode(raw) {
   if (lote) { document.getElementById('bd-lote').value        = lote; flashFill('bd-lote'); }
   if (venc) { document.getElementById('bd-vencimiento').value = venc; flashFill('bd-vencimiento'); }
 
-  // Check if this catalogue already has a raw code registered (different unit, same product)
+  // ── Check if this catalogue already has a raw code registered ──────────────
+  // Use GS1-extracted cat first; fall back to whatever is already typed in the field
   const catFinal = cat || document.getElementById('bd-catalogo').value.trim();
   if (catFinal) {
     const dupCat = bdRecords.find(r => r.codigoRaw && stripAI(r.catalogo).toLowerCase() === stripAI(catFinal).toLowerCase());
     if (dupCat) {
+      // Pre-fill fields from existing record so user can review/update, but don't block
+      if (!document.getElementById('bd-nombre').value.trim())    document.getElementById('bd-nombre').value    = dupCat.nombre;
+      if (!document.getElementById('bd-catalogo').value.trim())  document.getElementById('bd-catalogo').value  = dupCat.catalogo;
+      if (!document.getElementById('bd-lote').value.trim() && dupCat.lote) document.getElementById('bd-lote').value = dupCat.lote;
+      if (!document.getElementById('bd-vencimiento').value && dupCat.vencimiento && dupCat.vencimiento.toUpperCase() !== 'NA') {
+        document.getElementById('bd-vencimiento').value = dupCat.vencimiento;
+      }
       statusEl.className = 'barcode-status notfound';
-      statusEl.textContent = `⚠️ Este catálogo ya tiene un código RAW registrado: ${dupCat.nombre}`;
-      toast(`⚠️ Catálogo ya registrado en BD: ${dupCat.nombre}`, 'error');
+      statusEl.textContent = `⚠️ Catálogo ya registrado con otro código RAW: ${dupCat.nombre} — revisá y guardá para actualizar`;
+      toast(`⚠️ Catálogo ya en BD: ${dupCat.nombre} — se precargaron los datos`, 'error');
       return;
     }
   }
 
-  statusEl.className = 'barcode-status ' + (Object.keys(parsed).length ? 'warn' : 'idle');
-  statusEl.textContent = Object.keys(parsed).length
-    ? `GS1 detectado${cat?' · Cat:'+cat:''}${lote?' · Lote:'+lote:''} — completá los datos y guardá`
-    : 'Código registrado — completá los datos y guardá';
+  // ── Also warn if the same product name already exists (no catalogue match) ─
+  // This catches the case where GS1 gave no catalogue and the field is empty
+  if (!catFinal) {
+    const nomField = document.getElementById('bd-nombre').value.trim().toLowerCase();
+    if (nomField.length >= 4) {
+      const dupNom = bdRecords.find(r => r.codigoRaw && r.nombre.toLowerCase().includes(nomField));
+      if (dupNom) {
+        statusEl.className = 'barcode-status notfound';
+        statusEl.textContent = `⚠️ Posible duplicado por nombre: ${dupNom.nombre} — revisá antes de guardar`;
+        toast(`⚠️ Posible duplicado: ${dupNom.nombre}`, 'error');
+      }
+    }
+  }
+
+  statusEl.className = statusEl.className.includes('notfound') ? statusEl.className
+    : 'barcode-status ' + (Object.keys(parsed).length ? 'warn' : 'idle');
+  if (!statusEl.className.includes('notfound')) {
+    statusEl.textContent = Object.keys(parsed).length
+      ? `GS1 detectado${cat?' · Cat:'+cat:''}${lote?' · Lote:'+lote:''} — completá los datos y guardá`
+      : 'Código registrado — completá los datos y guardá';
+  }
 }
 
 // ── Save to BD ────────────────────────────────────────────────
@@ -4055,15 +4148,53 @@ async function guardarEnBD() {
 
   try {
     await ensureBDSheet();
-    // First try exact match by raw code
+
+    // 1. Exact raw match → update that row
     let existing = bdRecords.find(r => r.codigoRaw === raw);
-    // If not found, look for a pre-populated row (no raw code) with same catalogo
+
+    // 2. No raw match but same catalogue without a raw yet → update (pre-populated row)
     if (!existing && catalogo) {
       existing = bdRecords.find(r => !r.codigoRaw && stripAI(r.catalogo).toLowerCase() === stripAI(catalogo).toLowerCase());
     }
 
+    // 3. Different raw but same catalogue already registered → BLOCK duplicate
+    if (!existing && catalogo) {
+      const dupCat = bdRecords.find(r => r.codigoRaw && r.codigoRaw !== raw &&
+        stripAI(r.catalogo).toLowerCase() === stripAI(catalogo).toLowerCase());
+      if (dupCat) {
+        const replace = confirm(
+          `⚠️ "${dupCat.nombre}" (Cat: ${dupCat.catalogo}) ya tiene un código RAW registrado.
+
+` +
+          `¿Querés reemplazar el código RAW guardado por este nuevo?
+
+` +
+          `OK = Reemplazar   |   Cancelar = No guardar`
+        );
+        if (!replace) {
+          toast('Guardado cancelado — el catálogo ya existe en la BD', 'error');
+          return;
+        }
+        existing = dupCat; // update that row instead of appending
+      }
+    }
+
+    // 4. No catalogue but same nombre already registered → warn but allow
+    if (!existing && !catalogo && nombre) {
+      const dupNom = bdRecords.find(r => r.codigoRaw && r.codigoRaw !== raw &&
+        r.nombre.toLowerCase() === nombre.toLowerCase());
+      if (dupNom) {
+        const proceed = confirm(
+          `⚠️ Ya existe un registro con el mismo nombre: "${dupNom.nombre}".
+
+` +
+          `¿Querés guardarlo de todas formas?`
+        );
+        if (!proceed) { toast('Guardado cancelado', 'error'); return; }
+      }
+    }
+
     if (existing) {
-      // Update existing row
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
         range: `${BD_SHEET}!A${existing.rowIndex}:E${existing.rowIndex}`,
@@ -4072,7 +4203,6 @@ async function guardarEnBD() {
       });
       toast('✓ Registro actualizado en BD', 'success');
     } else {
-      // Append new row
       await gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
         range: `${BD_SHEET}!A:E`,
@@ -4207,6 +4337,8 @@ function bdACSelect(field, idx) {
     const bestCat = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0];
     if (bestCat) setVal('bd-catalogo', stripAI(bestCat));
   }
+  // Check for duplicate right after autocomplete fills the catalogue field
+  setTimeout(() => bdCheckCatalogoEnBD(document.getElementById('bd-catalogo')?.value), 50);
 }
 
 // Close BD autocomplete
@@ -4218,6 +4350,25 @@ document.addEventListener('click', e => {
       document.getElementById(`bd-ac-${f}`)?.classList.remove('show');
   });
 });
+
+// ── Inline duplicate check while typing/autocompleting catalogue ──────────────
+function bdCheckCatalogoEnBD(rawCat) {
+  const warn = document.getElementById('bd-cat-dup-warn');
+  if (!warn) return;
+  const cat = (rawCat || '').trim();
+  if (!cat || cat.length < 3) { warn.style.display = 'none'; return; }
+
+  const dup = bdRecords.find(r => r.codigoRaw &&
+    stripAI(r.catalogo).toLowerCase() === stripAI(cat).toLowerCase());
+
+  if (dup) {
+    warn.style.display = 'block';
+    warn.innerHTML = `⚠️ <strong>${htmlEsc(dup.nombre)}</strong> ya está en la BD con código RAW registrado.` +
+      ` Si es el mismo producto, escaneá su código y se actualizará automáticamente.`;
+  } else {
+    warn.style.display = 'none';
+  }
+}
 
 // ── Pre-poblar BD desde stock ──────────────────────────────────
 async function prepoblarBD() {
@@ -4282,6 +4433,8 @@ function limpiarBD() {
   if (bdChk) { bdChk.checked = false; toggleBDSinVenc(bdChk); }
   const s = document.getElementById('bd-barcode-status');
   if (s) { s.className = 'barcode-status idle'; s.textContent = 'Listo — escaneá un código para comenzar'; }
+  const w = document.getElementById('bd-cat-dup-warn');
+  if (w) w.style.display = 'none';
 }
 
 // ── Hook BD lookup into processBarcodeCode ────────────────────
@@ -4369,8 +4522,9 @@ document.addEventListener('click', e => {
 
     <!-- Catálogo -->
     <div>
-      <div class="fd-section-title">N° Catálogo</div>
+      <div class="fd-section-title">N° Catálogo <span class="fd-count-badge" id="badge-catalogo"></span></div>
       <div class="fd-search-wrap">
+        <svg class="fd-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="fd-search" id="fd-search-catalogo" placeholder="Buscar catálogo…" oninput="fdSearchChips('catalogo')" onfocus="fdSearchChips('catalogo')" autocomplete="off">
         <div class="fd-dropdown" id="fd-drop-catalogo"></div>
       </div>
@@ -4379,8 +4533,9 @@ document.addEventListener('click', e => {
 
     <!-- Nombre -->
     <div>
-      <div class="fd-section-title">Nombre del insumo</div>
+      <div class="fd-section-title">Nombre del insumo <span class="fd-count-badge" id="badge-nombre"></span></div>
       <div class="fd-search-wrap">
+        <svg class="fd-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="fd-search" id="fd-search-nombre" placeholder="Buscar insumo…" oninput="fdSearchChips('nombre')" onfocus="fdSearchChips('nombre')" autocomplete="off">
         <div class="fd-dropdown" id="fd-drop-nombre"></div>
       </div>
@@ -4389,8 +4544,9 @@ document.addEventListener('click', e => {
 
     <!-- Lote -->
     <div>
-      <div class="fd-section-title">N° Lote</div>
+      <div class="fd-section-title">N° Lote <span class="fd-count-badge" id="badge-lote"></span></div>
       <div class="fd-search-wrap">
+        <svg class="fd-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="fd-search" id="fd-search-lote" placeholder="Buscar lote…" oninput="fdSearchChips('lote')" onfocus="fdSearchChips('lote')" autocomplete="off">
         <div class="fd-dropdown" id="fd-drop-lote"></div>
       </div>
