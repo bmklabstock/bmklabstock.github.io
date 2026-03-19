@@ -2379,10 +2379,12 @@ async function confirmarAlta() {
       toast(`✓ ${cantidad} unidad${cantidad>1?'es':''} registrada${cantidad>1?'s':''} en hoja ${año}`);
     }
 
-    for (let li = 0; li < cantidad; li++) {
-      await writeLog('Alta', { nombre, catalogo, lote: `${lote} ${getLetter(li)}` },
-        `Venc: ${sinVenc ? 'NA' : toSheetDate(venc)} · Temp: ${temp} · Hoja: ${año}`);
-    }
+    // Single batch writeLog for all units — avoids N×2 API calls (ensureLogSheet + append)
+    const logItems = Array.from({length: cantidad}, (_, li) => ({
+      nombre, catalogo, lote: cantidad > 1 ? `${lote} ${getLetter(li)}` : lote
+    }));
+    await writeLog('Alta', logItems,
+      `Venc: ${sinVenc ? 'NA' : toSheetDate(venc)} · Temp: ${temp} · Hoja: ${año}`);
     limpiarAlta();
     await syncFromSheets();
   } catch(e) {
@@ -2623,15 +2625,18 @@ function renderACConsulta() {
       if (k.toLowerCase().includes(q)&&!seen.has(k)) {
         seen.add(k);
         const esc=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-        const hl=k.replace(new RegExp(`(${esc})`,'gi'),'<span class="ac-highlight">$1</span>');
-        const sub=k===item.nombre?`Cat: ${item.catalogo} · ${getAnio(item)}`:`En: ${item.nombre}`;
+        // Escape raw text BEFORE injecting into HTML, then add highlight spans
+        const kEsc=htmlEsc(k);
+        const hl=kEsc.replace(new RegExp(`(${esc})`,'gi'),'<span class="ac-highlight">$1</span>');
+        const sub=k===item.nombre?`Cat: ${htmlEsc(item.catalogo)} · ${getAnio(item)}`:`En: ${htmlEsc(item.nombre)}`;
         sugs.push({main:hl,sub,val:k});
       }
     }
     if(sugs.length>=6) break;
   }
   if(!sugs.length){list.classList.remove('show');return;}
-  list.innerHTML=sugs.map(s=>`<div class="autocomplete-item" onclick="selectACConsulta('${s.val.replace(/'/g,"\\'")}')"><div class="ac-main">${htmlEsc(s.main)}</div><div class="ac-sub">${htmlEsc(s.sub)}</div></div>`).join('');
+  // s.main and s.sub are pre-escaped HTML — render directly
+  list.innerHTML=sugs.map(s=>`<div class="autocomplete-item" onclick="selectACConsulta('${s.val.replace(/'/g,"\\'")}')"><div class="ac-main">${s.main}</div><div class="ac-sub">${s.sub}</div></div>`).join('');
   list.classList.add('show');
 }
 function selectACConsulta(val) {
@@ -3508,7 +3513,9 @@ window.showPage = function(id) {
 const LOG_SHEET = 'LOG';
 
 const LOG_HEADER = ['Timestamp','Usuario','Acción','Insumo','Catálogo','Lote','Detalle','Estado anterior'];
+let _logSheetReady = false; // cache: avoid repeated spreadsheets.get calls
 async function ensureLogSheet() {
+  if (_logSheetReady) return; // already verified this session
   const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const exists = meta.result.sheets.some(s => s.properties.title === LOG_SHEET);
   if (!exists) {
@@ -3517,7 +3524,7 @@ async function ensureLogSheet() {
       resource: { requests: [{ addSheet: { properties: { title: LOG_SHEET, gridProperties: { rowCount: 5000, columnCount: 8 } } } }] }
     });
   }
-  // Always ensure header is up to date (handles migration from 7-col to 8-col)
+  // Ensure header is up to date (handles migration from 7-col to 8-col)
   const headerResp = await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID, range: `${LOG_SHEET}!A1:H1`
   });
@@ -3530,19 +3537,23 @@ async function ensureLogSheet() {
       resource: { values: [LOG_HEADER] }
     });
   }
+  _logSheetReady = true; // mark as ready for the rest of the session
 }
 
 async function writeLog(accion, item, detalle = '', estadoAnterior = '') {
+  // item can be a single object OR an array of objects (for batch alta)
   try {
     await ensureLogSheet();
     const usuario = document.getElementById('user-email')?.textContent || 'desconocido';
     const ts = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+    const items = Array.isArray(item) ? item : [item];
+    const rows = items.map(it => [ts, usuario, accion, it.nombre || '', it.catalogo || '', it.lote || '', detalle, estadoAnterior]);
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: `${LOG_SHEET}!A:H`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
-      resource: { values: [[ts, usuario, accion, item.nombre || '', item.catalogo || '', item.lote || '', detalle, estadoAnterior]] }
+      resource: { values: rows }
     });
   } catch(e) {
     console.warn('Log write failed (non-critical):', e);
