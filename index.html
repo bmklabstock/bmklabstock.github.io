@@ -1635,6 +1635,48 @@ async function verifyRowIntegrity(item) {
   }
 }
 
+// Batch version of verifyRowIntegrity — reads all rows from each sheet in one
+// request instead of one request per item. Use when verifying many items at once.
+async function verifyBatchIntegrity(items) {
+  // Group items by sheet
+  const bySheet = {};
+  for (const item of items) {
+    if (!bySheet[item.sheetName]) bySheet[item.sheetName] = [];
+    bySheet[item.sheetName].push(item);
+  }
+  // For each sheet, read all relevant rows in one batchGet
+  for (const [sheetName, sheetItems] of Object.entries(bySheet)) {
+    const ranges = sheetItems.map(i => `${sheetName}!C${i.rowIndex}:E${i.rowIndex}`);
+    const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
+      spreadsheetId: SHEET_ID,
+      ranges
+    });
+    const valueRanges = resp.result.valueRanges || [];
+    for (let i = 0; i < sheetItems.length; i++) {
+      const item = sheetItems[i];
+      const vals = valueRanges[i]?.values?.[0] || [];
+      const sheetNombre = (vals[0] || '').trim().toLowerCase();
+      const sheetLote   = (vals[2] || '').trim().toLowerCase();
+      const itemNombre  = (item.nombre || '').trim().toLowerCase();
+      const itemLote    = (item.lote   || '').trim().toLowerCase();
+      if (sheetNombre !== itemNombre || sheetLote !== itemLote) {
+        throw new Error(
+          `⚠️ Desincronización detectada en fila ${item.rowIndex} (${sheetName}).
+` +
+          `El sistema esperaba: "${item.nombre}" · lote "${item.lote}"
+` +
+          `Sheets contiene:     "${vals[0] || '(vacío)'}" · lote "${vals[2] || '(vacío)'}"
+
+` +
+          `La operación fue cancelada para evitar pérdida de datos.
+` +
+          `Sincronizá manualmente y volvé a intentarlo.`
+        );
+      }
+    }
+  }
+}
+
 async function verifyBDRowIntegrity(record) {
   const checkRange = `${BD_SHEET}!A${record.rowIndex}:B${record.rowIndex}`; // A=raw, B=nombre
   const resp = await gapi.client.sheets.spreadsheets.values.get({
@@ -2379,10 +2421,12 @@ async function confirmarAlta() {
       toast(`✓ ${cantidad} unidad${cantidad>1?'es':''} registrada${cantidad>1?'s':''} en hoja ${año}`);
     }
 
-    for (let li = 0; li < cantidad; li++) {
-      await writeLog('Alta', { nombre, catalogo, lote: `${lote} ${getLetter(li)}` },
-        `Venc: ${sinVenc ? 'NA' : toSheetDate(venc)} · Temp: ${temp} · Hoja: ${año}`);
-    }
+    // Single batch writeLog for all units — avoids N×2 API calls (ensureLogSheet + append)
+    const logItems = Array.from({length: cantidad}, (_, li) => ({
+      nombre, catalogo, lote: cantidad > 1 ? `${lote} ${getLetter(li)}` : lote
+    }));
+    await writeLog('Alta', logItems,
+      `Venc: ${sinVenc ? 'NA' : toSheetDate(venc)} · Temp: ${temp} · Hoja: ${año}`);
     limpiarAlta();
     await syncFromSheets();
   } catch(e) {
@@ -3051,10 +3095,9 @@ Esta acción no se puede deshacer.`)) return;
       bySheet[i.sheetName].push(i.rowIndex); // rowIndex is already 1-based sheet row
     });
     // Phase 1: verify ALL rows across ALL sheets before touching anything
-    // This prevents partial deletion (some sheets deleted, others not) on integrity error
-    for (const item of toDelete) {
-      await verifyRowIntegrity(item);
-    }
+    // Uses batch read (one request per sheet) instead of one request per item
+    // to avoid hitting the 60 reads/min rate limit when deleting many items at once
+    await verifyBatchIntegrity(toDelete);
     // Phase 2: delete — all integrity checks passed
     for (const [sheetName, rows] of Object.entries(bySheet)) {
       const sheetId = await getSheetId(sheetName);
@@ -3511,7 +3554,9 @@ window.showPage = function(id) {
 const LOG_SHEET = 'LOG';
 
 const LOG_HEADER = ['Timestamp','Usuario','Acción','Insumo','Catálogo','Lote','Detalle','Estado anterior'];
+let _logSheetReady = false; // cache: avoid repeated spreadsheets.get calls
 async function ensureLogSheet() {
+  if (_logSheetReady) return; // already verified this session
   const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const exists = meta.result.sheets.some(s => s.properties.title === LOG_SHEET);
   if (!exists) {
@@ -3520,7 +3565,7 @@ async function ensureLogSheet() {
       resource: { requests: [{ addSheet: { properties: { title: LOG_SHEET, gridProperties: { rowCount: 5000, columnCount: 8 } } } }] }
     });
   }
-  // Always ensure header is up to date (handles migration from 7-col to 8-col)
+  // Ensure header is up to date (handles migration from 7-col to 8-col)
   const headerResp = await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID, range: `${LOG_SHEET}!A1:H1`
   });
@@ -3533,19 +3578,23 @@ async function ensureLogSheet() {
       resource: { values: [LOG_HEADER] }
     });
   }
+  _logSheetReady = true; // mark as ready for the rest of the session
 }
 
 async function writeLog(accion, item, detalle = '', estadoAnterior = '') {
+  // item can be a single object OR an array of objects (for batch alta)
   try {
     await ensureLogSheet();
     const usuario = document.getElementById('user-email')?.textContent || 'desconocido';
     const ts = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+    const items = Array.isArray(item) ? item : [item];
+    const rows = items.map(it => [ts, usuario, accion, it.nombre || '', it.catalogo || '', it.lote || '', detalle, estadoAnterior]);
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: `${LOG_SHEET}!A:H`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
-      resource: { values: [[ts, usuario, accion, item.nombre || '', item.catalogo || '', item.lote || '', detalle, estadoAnterior]] }
+      resource: { values: rows }
     });
   } catch(e) {
     console.warn('Log write failed (non-critical):', e);
