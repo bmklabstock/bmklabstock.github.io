@@ -3230,20 +3230,39 @@ function onBarcodeKeyBaja(e) {
 // GS1-128 PARSER — v2 con lookahead para campos variables sin FNC1
 // ═══════════════════════════════════════════════════════════════
 const GS1_AI = {
-  '00': { name:'sscc',       len:18, fixed:true  },
-  '01': { name:'gtin',       len:14, fixed:true  },
-  '10': { name:'lot',        len:20, fixed:false },
-  '11': { name:'prodDate',   len:6,  fixed:true  },
-  '13': { name:'packDate',   len:6,  fixed:true  },
-  '15': { name:'bestBefore', len:6,  fixed:true  },
-  '17': { name:'expDate',    len:6,  fixed:true  },
-  '20': { name:'variant',    len:2,  fixed:true  },
-  '21': { name:'serial',     len:20, fixed:false },
-  '22': { name:'secondary',  len:29, fixed:false },
-  '240':{ name:'ref',        len:30, fixed:false },
-  '241':{ name:'custPart',   len:30, fixed:false },
-  '30': { name:'qty',        len:8,  fixed:false },
-  '37': { name:'qtyUnits',   len:8,  fixed:false },
+  // Identificadores de producto
+  '00': { name:'sscc',        len:18, fixed:true  },
+  '01': { name:'gtin',        len:14, fixed:true  },
+  '02': { name:'gtinContent', len:14, fixed:true  },
+  // Trazabilidad
+  '10': { name:'lot',         len:20, fixed:false },
+  '21': { name:'serial',      len:20, fixed:false },
+  '22': { name:'secondary',   len:29, fixed:false },
+  // Fechas (todas fijas 6 dígitos YYMMDD)
+  '11': { name:'prodDate',    len:6,  fixed:true  },
+  '12': { name:'dueDate',     len:6,  fixed:true  },
+  '13': { name:'packDate',    len:6,  fixed:true  },
+  '15': { name:'bestBefore',  len:6,  fixed:true  },
+  '16': { name:'sellBy',      len:6,  fixed:true  },
+  '17': { name:'expDate',     len:6,  fixed:true  },
+  // Medidas
+  '20': { name:'variant',     len:2,  fixed:true  },
+  '30': { name:'qty',         len:8,  fixed:false },
+  '37': { name:'qtyUnits',    len:8,  fixed:false },
+  // Referencia de catálogo / número de parte
+  '240':{ name:'ref',         len:30, fixed:false },
+  '241':{ name:'custPart',    len:30, fixed:false },
+  '242':{ name:'mtoVariant',  len:6,  fixed:false },
+  '243':{ name:'pcn',         len:20, fixed:false },
+  // Info adicional de laboratorio/farmacia
+  '710':{ name:'nhrn_gs',     len:20, fixed:false },
+  '711':{ name:'nhrn_dp',     len:20, fixed:false },
+  '712':{ name:'nhrn_uc',     len:20, fixed:false },
+  '713':{ name:'nhrn_bcbp',   len:20, fixed:false },
+  '714':{ name:'nhrn_mh',     len:20, fixed:false },
+  '8012':{ name:'softVersion',len:20, fixed:false },
+  '8013':{ name:'gmn',        len:30, fixed:false },
+  '8026':{ name:'gtinPkg',    len:18, fixed:true  },
 };
 
 // All known AI prefixes sorted longest-first for matching
@@ -3289,6 +3308,11 @@ function parseGS1(code) {
     if (def.fixed) {
       value = s.substring(i, i + def.len);
       i += def.len;
+      // Validación de campos fijos
+      if (def.name === 'gtin' && !/^\d{14}$/.test(value)) { value = ''; } // GTIN debe ser 14 dígitos
+      if (['expDate','bestBefore','prodDate','packDate','sellBy','dueDate'].includes(def.name)) {
+        if (!/^\d{6}$/.test(value)) value = ''; // Fechas deben ser 6 dígitos
+      }
     } else {
       // Variable: stop at FNC1, next known AI, or maxLen — whichever comes first
       const fnc1Pos = s.indexOf('\x1d', i);
@@ -3300,6 +3324,9 @@ function parseGS1(code) {
       if (nextAIPos !== -1 && nextAIPos < stopAt) stopAt = nextAIPos;
       value = s.substring(i, stopAt).toUpperCase().trim();
       i = stopAt;
+      // Validación de campos variables
+      if (def.name === 'lot' && value.length < 1) value = ''; // lote vacío → ignorar
+      if (def.name === 'ref' && value.length < 2) value = '';  // catálogo de 1 char → ignorar
     }
     if (value) result[def.name] = value;
   }
@@ -3308,22 +3335,33 @@ function parseGS1(code) {
 
 function gs1ExpToISO(yymmdd) {
   if (!yymmdd || yymmdd.length !== 6) return '';
+  if (!/^\d{6}$/.test(yymmdd)) return ''; // debe ser exactamente 6 dígitos
   const yy = parseInt(yymmdd.substring(0,2));
-  const mm = yymmdd.substring(2,4);
-  const dd = yymmdd.substring(4,6);
-  const year = yy <= 30 ? 2000 + yy : 1900 + yy;
-  if (dd === '00') {
-    const lastDay = new Date(year, parseInt(mm), 0).getDate();
-    return `${year}-${mm}-${String(lastDay).padStart(2,'0')}`;
+  const mm = parseInt(yymmdd.substring(2,4));
+  const dd = parseInt(yymmdd.substring(4,6));
+  // GS1 standard: yy 00-49 → 2000-2049, yy 50-99 → 1950-1999
+  const year = yy <= 49 ? 2000 + yy : 1900 + yy;
+  // Validar mes
+  if (mm < 1 || mm > 12) return '';
+  const mmStr = String(mm).padStart(2,'0');
+  if (dd === 0) {
+    // dd=00 significa último día del mes (convención GS1)
+    const lastDay = new Date(year, mm, 0).getDate();
+    return `${year}-${mmStr}-${String(lastDay).padStart(2,'0')}`;
   }
-  return `${year}-${mm}-${dd}`;
+  // Validar día
+  const maxDay = new Date(year, mm, 0).getDate();
+  if (dd < 1 || dd > maxDay) return '';
+  return `${year}-${mmStr}-${String(dd).padStart(2,'0')}`;
 }
 
 function extractCatalog(parsed) {
-  // Solo AI 240 (ref) es el N° de catálogo del fabricante.
+  // AI 240 (ref) = número de referencia del fabricante = N° de catálogo.
+  // AI 241 (custPart) = número de parte del cliente (segundo candidato).
   // El GTIN (AI 01) identifica el producto globalmente pero NO es el N° de catálogo
-  // que figura en la planilla de stock — nunca usarlo como catálogo.
-  if (parsed.ref) return parsed.ref.trim();
+  // que figura en la planilla de stock — nunca usarlo como catálogo directamente.
+  if (parsed.ref && parsed.ref.length >= 2)      return parsed.ref.trim();
+  if (parsed.custPart && parsed.custPart.length >= 2) return parsed.custPart.trim();
   return '';
 }
 
@@ -3349,12 +3387,17 @@ function lookupInStock(catalogStr, loteStr, rawCode, isGS1 = false) {
   // 1. Exact catalog match (solo si GS1 detectó un catálogo via AI 240)
   let m = catLow ? src.find(i => normCat(i.catalogo) === catLow) : null;
 
-  // 2. Lot match: ambos lados deben tener >= 4 chars para evitar falsos positivos
-  if (!m && loteLow.length >= 4) {
+  // 2. Lot match: solo match exacto o que el lote del stock esté contenido en el
+  // código escaneado (no al revés — evita que un lote corto matchee en cualquier código)
+  // Ambos lados deben tener >= 6 chars para evitar falsos positivos
+  if (!m && loteLow.length >= 6) {
     m = src.find(i => {
       const sl = normLote(i.lote);
-      if (sl.length < 4) return false;
-      return sl === loteLow || sl.includes(loteLow) || loteLow.includes(sl);
+      if (sl.length < 6) return false;
+      // Exacto, o el lote del stock está contenido en el código escaneado
+      // (el código escaneado puede incluir prefijos del fabricante)
+      return sl === loteLow || loteLow.includes(sl);
+      // NOTA: sl.includes(loteLow) eliminado — demasiado permisivo
     });
   }
 
@@ -4192,18 +4235,58 @@ async function syncBD() {
 //  3. The scanned code contains the stored codigo as prefix/core
 function lookupInBD(rawCode) {
   const raw = rawCode.trim();
-  // 1. Exact
+
+  // ── 1. Exact match (mismo código guardado) ─────────────────────
   let m = bdRecords.find(r => r.codigoRaw === raw);
   if (m) return { record: m, extractedLote: m.lote, extractedVenc: m.vencimiento };
 
-  // 2. Structural match — extract lote and venc from same positions in new code
+  // ── 2. GS1-first match — si ambos son GS1, comparar por GTIN (AI 01) ──
+  // El GTIN identifica el producto de forma única. Si coincide, es el mismo
+  // producto aunque el lote/venc sean distintos.
+  const newParsed = parseGS1(raw);
+  if (newParsed.gtin) {
+    for (const r of bdRecords) {
+      if (!r.codigoRaw) continue;
+      const storedParsed = parseGS1(r.codigoRaw);
+      if (storedParsed.gtin && storedParsed.gtin === newParsed.gtin) {
+        // Mismo GTIN = mismo producto. Extraer lote y venc del nuevo código vía GS1.
+        const extractedLote = (newParsed.lot || '').trim().toUpperCase() || r.lote;
+        const extractedVenc = gs1ExpToISO(newParsed.expDate || newParsed.bestBefore || '') || r.vencimiento;
+        return { record: r, extractedLote, extractedVenc };
+      }
+    }
+  }
+
+  // ── 3. GS1 catálogo (AI 240) match ─────────────────────────────
+  // Si el nuevo código tiene catálogo GS1 (AI 240) y coincide con uno en BD.
+  const newCat = extractCatalog(newParsed);
+  if (newCat) {
+    for (const r of bdRecords) {
+      if (!r.codigoRaw) continue;
+      if (stripAI(r.catalogo).toLowerCase() === newCat.toLowerCase()) {
+        const extractedLote = (newParsed.lot || '').trim().toUpperCase() || r.lote;
+        const extractedVenc = gs1ExpToISO(newParsed.expDate || newParsed.bestBefore || '') || r.vencimiento;
+        return { record: r, extractedLote, extractedVenc };
+      }
+    }
+  }
+
+  // ── 4. Structural match (no-GS1) — solo para códigos simples ───
+  // Solo aplica cuando el código almacenado NO es GS1 (códigos propietarios,
+  // barcodes de fabricante sin GTIN). Requiere guards estrictos.
   for (const r of bdRecords) {
+    if (!r.codigoRaw) continue;
+    // Saltar si el código guardado parece GS1 (longitud >20 y empieza con AI conocido)
+    const storedParsed = parseGS1(r.codigoRaw);
+    const storedIsGS1  = Object.keys(storedParsed).length > 0;
+    if (storedIsGS1) continue; // ya fue manejado arriba; no hacer structural sobre GS1
     const extractedLote = extractLoteFromCode(raw, r.codigoRaw, r.lote);
     if (extractedLote !== null) {
       const extractedVenc = extractVencFromCode(raw, r.codigoRaw, r.vencimiento);
       return { record: r, extractedLote, extractedVenc };
     }
   }
+
   return null;
 }
 
