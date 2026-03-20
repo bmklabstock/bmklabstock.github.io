@@ -92,8 +92,9 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'S
 .page {
   position:absolute; inset:0; overflow-y:auto; overflow-x:hidden;
   display:none; flex-direction:column;
-  padding-bottom:calc(80px + var(--safe-bot));
+  padding-bottom:calc(88px + var(--safe-bot));
   -webkit-overflow-scrolling:touch;
+  scroll-behavior:smooth;
 }
 .page.active { display:flex; }
 
@@ -154,8 +155,9 @@ select.field-input option { background:var(--card); }
 
 /* ── CAMERA SCANNER ── */
 .scanner-container {
-  position:relative; width:100%; aspect-ratio:1/1; max-height:280px;
+  position:relative; width:100%; height:220px;
   background:#000; border-radius:var(--radius); overflow:hidden;
+  flex-shrink:0;
 }
 #scanner-video {
   width:100%; height:100%; object-fit:cover; display:block;
@@ -215,6 +217,7 @@ select.field-input option { background:var(--card); }
   width:100%; padding:15px; border-radius:12px;
   background:var(--accent); border:none; color:#fff;
   font-size:16px; font-weight:700; cursor:pointer; transition:.15s;
+  -webkit-appearance:none;
 }
 .primary-btn:active { transform:scale(.97); opacity:.9; }
 .primary-btn:disabled { opacity:.4; pointer-events:none; }
@@ -460,10 +463,12 @@ select.field-input option { background:var(--card); }
         </div>
       </div>
 
-      <div style="padding:0 12px 12px">
-        <button class="primary-btn" id="btn-confirmar-alta" onclick="confirmarAltaMobile()">
-          Confirmar alta en Sheets
-        </button>
+      <div class="card" style="margin-bottom:16px">
+        <div style="padding:14px 16px">
+          <button class="primary-btn" id="btn-confirmar-alta" onclick="confirmarAltaMobile()">
+            Confirmar alta en Sheets
+          </button>
+        </div>
       </div>
     </div>
 
@@ -920,18 +925,20 @@ async function startScanner(){
     label.textContent='Detener escáner';
     scannerActive=true;
 
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    // Prefer rear camera on mobile
-    const rearCam = devices.find(d=>/(back|rear|environment)/i.test(d.label)) || devices[devices.length-1];
-    const deviceId = rearCam?.deviceId;
-
-    await codeReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
-      if(result) {
-        const code = result.getText();
-        stopScanner();
-        onCodeScanned(code, 'alta');
+    // Use environment-facing camera via constraints (works on all mobile browsers)
+    // No need to list devices — just pass undefined and let constraints handle it
+    await codeReader.decodeFromConstraints(
+      { video: { facingMode: { ideal: 'environment' } } },
+      videoEl,
+      (result, err) => {
+        if (result) {
+          const code = result.getText();
+          stopScanner();
+          onCodeScanned(code, 'alta');
+        }
+        // Ignore NotFoundException (no code in frame yet) — it fires continuously
       }
-    });
+    );
   } catch(e){
     stopScanner();
     toast('No se pudo acceder a la cámara: '+e.message,'error');
@@ -939,24 +946,19 @@ async function startScanner(){
 }
 
 function stopScanner(){
-  if(codeReader){try{codeReader.reset();}catch(e){}}
+  try { if(codeReader) codeReader.reset(); } catch(e){}
   codeReader=null;
   scannerActive=false;
   const videoEl=document.getElementById('scanner-video');
-  const placeholder=document.getElementById('scanner-placeholder');
-  const overlay=document.getElementById('scanner-overlay');
-  const btn=document.getElementById('scan-btn');
-  const label=document.getElementById('scan-btn-label');
-  if(videoEl) videoEl.style.display='none';
-  if(placeholder) placeholder.style.display='flex';
-  if(overlay) overlay.style.display='none';
-  if(btn) btn.classList.remove('scanning');
-  if(label) label.textContent='Escanear código';
-  // Stop camera stream
-  if(videoEl && videoEl.srcObject){
-    videoEl.srcObject.getTracks().forEach(t=>t.stop());
-    videoEl.srcObject=null;
+  if(videoEl){
+    // Stop all media tracks
+    if(videoEl.srcObject){ videoEl.srcObject.getTracks().forEach(t=>t.stop()); videoEl.srcObject=null; }
+    videoEl.style.display='none';
   }
+  const ph=document.getElementById('scanner-placeholder'); if(ph) ph.style.display='flex';
+  const ov=document.getElementById('scanner-overlay'); if(ov) ov.style.display='none';
+  const btn=document.getElementById('scan-btn'); if(btn) btn.classList.remove('scanning');
+  const lbl=document.getElementById('scan-btn-label'); if(lbl) lbl.textContent='Escanear código';
 }
 
 let bajaCodeReader = null;
@@ -977,17 +979,17 @@ async function startBajaScanner(){
     label.textContent='Detener escáner';
     bajaScannerActive=true;
 
-    const devices=await ZXing.BrowserCodeReader.listVideoInputDevices();
-    const rearCam=devices.find(d=>/(back|rear|environment)/i.test(d.label))||devices[devices.length-1];
-    const deviceId=rearCam?.deviceId;
-
-    await bajaCodeReader.decodeFromVideoDevice(deviceId, videoEl, (result,err)=>{
-      if(result){
-        const code=result.getText();
-        stopBajaScanner();
-        onCodeScanned(code,'baja');
+    await bajaCodeReader.decodeFromConstraints(
+      { video: { facingMode: { ideal: 'environment' } } },
+      videoEl,
+      (result, err) => {
+        if (result) {
+          const code = result.getText();
+          stopBajaScanner();
+          onCodeScanned(code, 'baja');
+        }
       }
-    });
+    );
   } catch(e){
     stopBajaScanner();
     toast('No se pudo acceder a la cámara: '+e.message,'error');
@@ -995,20 +997,18 @@ async function startBajaScanner(){
 }
 
 function stopBajaScanner(){
-  if(bajaCodeReader){try{bajaCodeReader.reset();}catch(e){}}
+  try { if(bajaCodeReader) bajaCodeReader.reset(); } catch(e){}
   bajaCodeReader=null;
   bajaScannerActive=false;
   const videoEl=document.getElementById('baja-scanner-video');
-  const placeholder=document.getElementById('baja-scanner-placeholder');
-  const overlay=document.getElementById('baja-scanner-overlay');
-  const btn=document.getElementById('baja-scan-btn');
-  const label=document.getElementById('baja-scan-btn-label');
-  if(videoEl) videoEl.style.display='none';
-  if(placeholder) placeholder.style.display='flex';
-  if(overlay) overlay.style.display='none';
-  if(btn) btn.classList.remove('scanning');
-  if(label) label.textContent='Escanear para buscar';
-  if(videoEl&&videoEl.srcObject){videoEl.srcObject.getTracks().forEach(t=>t.stop());videoEl.srcObject=null;}
+  if(videoEl){
+    if(videoEl.srcObject){ videoEl.srcObject.getTracks().forEach(t=>t.stop()); videoEl.srcObject=null; }
+    videoEl.style.display='none';
+  }
+  const ph=document.getElementById('baja-scanner-placeholder'); if(ph) ph.style.display='flex';
+  const ov=document.getElementById('baja-scanner-overlay'); if(ov) ov.style.display='none';
+  const btn=document.getElementById('baja-scan-btn'); if(btn) btn.classList.remove('scanning');
+  const lbl=document.getElementById('baja-scan-btn-label'); if(lbl) lbl.textContent='Escanear para buscar';
 }
 
 function stopAllScanners(){ stopScanner(); stopBajaScanner(); }
