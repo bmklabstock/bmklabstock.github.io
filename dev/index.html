@@ -3263,6 +3263,19 @@ const GS1_AI = {
   '8012':{ name:'softVersion',len:20, fixed:false },
   '8013':{ name:'gmn',        len:30, fixed:false },
   '8026':{ name:'gtinPkg',    len:18, fixed:true  },
+  // AIs 91-99: company internal (Thermo Fisher, Life Tech, Roche, Illumina, etc.)
+  // AI 91 = catalogue/part number del fabricante (Thermo Fisher: A29025, A27755, etc.)
+  // AI 90 excluido intencionalmente: "90" aparece dentro de valores alfanuméricos
+  // (ej: "A2[90]25") y causaría truncación incorrecta de campos variables.
+  '91': { name:'internal91',  len:30, fixed:false },
+  '92': { name:'internal92',  len:30, fixed:false },
+  '93': { name:'internal93',  len:30, fixed:false },
+  '94': { name:'internal94',  len:30, fixed:false },
+  '95': { name:'internal95',  len:30, fixed:false },
+  '96': { name:'internal96',  len:30, fixed:false },
+  '97': { name:'internal97',  len:30, fixed:false },
+  '98': { name:'internal98',  len:30, fixed:false },
+  '99': { name:'internal99',  len:30, fixed:false },
 };
 
 // All known AI prefixes sorted longest-first for matching
@@ -3271,28 +3284,45 @@ const GS1_AI_KEYS = Object.keys(GS1_AI).sort((a,b) => b.length - a.length);
 // Separadores que algunas pistolas insertan entre campos variables
 const GS1_SEPARATORS = ['\x1d', '|', '\x1c'];
 
-// AIs that can validly FOLLOW a variable field inside a concatenated GS1 barcode.
-// AIs that START a barcode (00=SSCC, 01=GTIN, 02) or are extremely short/common ('20')
-// are excluded because their digit sequences appear often inside lot numbers and dates,
-// causing false truncation of variable fields.
-const VALID_NEXT_AI = new Set([
-  '10','11','12','13','15','16','17',  // dates and lot
-  '21','22',                           // serial, secondary
-  '30','37',                           // quantities
-  '240','241','242','243',             // catalogue / part number
-  '710','711','712','713','714',       // national healthcare
-  '8012','8013','8026',
-]);
+// Per-AI "what can validly follow this field" sets.
+// This prevents false truncation: e.g. a lot "3106337" contains "37" (qty AI),
+// a catalogue "A29025" contains "90" (internal AI), etc.
+// Only truly-unambiguous successor AIs are listed for each field type.
+const VALID_AFTER_AI = {
+  // After a lot (AI 10): expect date or catalogue/reference — NOT quantities (30,37)
+  '10':  new Set(['11','12','13','15','16','17','21','22','240','241','242','243',
+                  '91','92','93','94','95','96','97','98','99']),
+  // After a serial (AI 21): expect date or catalogue
+  '21':  new Set(['11','12','13','15','16','17','240','241']),
+  // After catalogue/ref (AI 240/241): expect lot, date, serial
+  '240': new Set(['10','11','12','13','15','16','17','21']),
+  '241': new Set(['10','11','12','13','15','16','17','21']),
+  // After internal/company AIs (9x): only hard terminators — NOT other 9x
+  // because alphanumeric catalogue values like "A29025" contain "90","91"..."99"
+  '9x':  new Set(['10','11','12','13','15','16','17','21','240','241','242','243']),
+  // Default for other variable fields
+  'default': new Set(['10','11','12','13','15','16','17','21','22','30','37',
+                      '240','241','242','243','710','711','712','713','714',
+                      '8012','8013','8026',
+                      '91','92','93','94','95','96','97','98','99']),
+};
+
+function validNextForAI(currentAI) {
+  if (VALID_AFTER_AI[currentAI]) return VALID_AFTER_AI[currentAI];
+  if (currentAI.charAt(0) === '9') return VALID_AFTER_AI['9x'];
+  return VALID_AFTER_AI['default'];
+}
 
 // Find next known AI position starting after `from`, within `maxLen` chars.
-// Only considers AIs in VALID_NEXT_AI — avoids false positives from '00','01','02','20'
-// which appear as digit sequences inside lot numbers and cause premature truncation.
+// Uses per-currentAI valid sets to avoid false truncation from digit sequences
+// that appear inside variable field values (e.g. "37" inside a lot, "90" inside a catalogue).
 function findNextAI(s, from, maxLen, currentAI) {
   const end = Math.min(from + maxLen, s.length);
+  const valid = validNextForAI(currentAI);
   for (let j = from + 1; j <= end - 2; j++) {
     for (const k of GS1_AI_KEYS) {
       if (k === currentAI) continue;
-      if (!VALID_NEXT_AI.has(k)) continue; // skip AIs that start barcodes
+      if (!valid.has(k)) continue;
       if (s.substring(j, j + k.length) === k) return j;
     }
   }
@@ -3372,11 +3402,19 @@ function gs1ExpToISO(yymmdd) {
 
 function extractCatalog(parsed) {
   // AI 240 (ref) = número de referencia del fabricante = N° de catálogo.
-  // AI 241 (custPart) = número de parte del cliente (segundo candidato).
+  // AI 241 (custPart) = número de parte del cliente.
+  // AI 91  = uso interno del fabricante; Thermo Fisher/Life Tech lo usa para el N° de catálogo
+  //          (ej: A29025, A27755, A34018). Reconocible porque coincide con el patrón de catálogo.
   // El GTIN (AI 01) identifica el producto globalmente pero NO es el N° de catálogo
   // que figura en la planilla de stock — nunca usarlo como catálogo directamente.
-  if (parsed.ref && parsed.ref.length >= 2)      return parsed.ref.trim();
+  if (parsed.ref && parsed.ref.length >= 2)           return parsed.ref.trim();
   if (parsed.custPart && parsed.custPart.length >= 2) return parsed.custPart.trim();
+  // Check internal AIs 91-99 for catalogue-like values
+  // A catalogue value typically: alphanumeric, 4-20 chars, not pure digits only (those are serials)
+  for (const ai of ['internal91','internal90','internal92','internal93','internal94']) {
+    const v = parsed[ai];
+    if (v && v.length >= 3 && v.length <= 20 && /[A-Z]/.test(v)) return v.trim();
+  }
   return '';
 }
 
