@@ -604,10 +604,7 @@ select.field-input option { background:var(--card); }
 <!-- Toast -->
 <div id="toast"></div>
 
-<!-- Google APIs -->
-<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-<!-- ZXing for camera QR/barcode scanning -->
+<!-- ZXing for camera QR/barcode scanning (load first, no callbacks needed) -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 
 <script>
@@ -688,46 +685,70 @@ function clearToken(){try{sessionStorage.removeItem(SS_TOKEN);}catch(e){}}
 function saveHint(e){try{localStorage.setItem(LS_HINT,e);}catch(e){}}
 function loadHint(){try{return localStorage.getItem(LS_HINT)||'';}catch(e){return '';}}
 
-function gapiLoaded(){
-  gapi.load('client',async()=>{
-    await gapi.client.init({discoveryDocs:[DISCOVERY]});
-    gapiReady=true; maybeReady();
+// gapiLoaded and gisLoaded are assigned to window so they work
+// regardless of whether Google scripts load before or after this block
+window.gapiLoaded = function(){
+  gapi.load('client', async () => {
+    try {
+      await gapi.client.init({ discoveryDocs: [DISCOVERY] });
+    } catch(e) { console.warn('gapi init error:', e); }
+    gapiReady = true;
+    maybeReady();
   });
-}
-function gisLoaded(){
-  tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:CLIENT_ID, scope:SCOPES,
-    callback:async(resp)=>{
-      if(resp.error){
-        document.getElementById('loading-screen').style.display='none';
-        document.getElementById('login-screen').style.display='flex';
-        return;
+};
+
+window.gisLoaded = function(){
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) {
+          showLoginScreen();
+          return;
+        }
+        saveToken(resp);
+        gapi.client.setToken({ access_token: resp.access_token });
+        await afterLogin();
       }
-      saveToken(resp);
-      gapi.client.setToken({access_token:resp.access_token});
-      await afterLogin();
-    }
-  });
-  gisReady=true; maybeReady();
+    });
+  } catch(e) { console.warn('GIS init error:', e); }
+  gisReady = true;
+  maybeReady();
+};
+
+function showLoginScreen() {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display  = 'flex';
 }
 
-function maybeReady(){
-  if(!gapiReady||!gisReady) return;
-  const saved=loadToken();
-  if(saved){
-    gapi.client.setToken({access_token:saved.access_token});
-    document.getElementById('loading-screen').style.display='flex';
+function maybeReady() {
+  if (!gapiReady || !gisReady) return;
+  clearTimeout(_loadingTimeout);
+  const saved = loadToken();
+  if (saved) {
+    gapi.client.setToken({ access_token: saved.access_token });
+    // Keep loading screen visible, afterLogin will hide it
     afterLogin();
   } else {
-    const hint=loadHint();
-    if(hint){
-      tokenClient.requestAccessToken({prompt:'',login_hint:hint});
+    const hint = loadHint();
+    if (hint) {
+      // Try silent login with known account
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
     } else {
-      document.getElementById('loading-screen').style.display='none';
-      document.getElementById('login-screen').style.display='flex';
+      showLoginScreen();
     }
   }
 }
+
+// Safety timeout: if stuck loading after 10s, show login screen
+let _loadingTimeout = setTimeout(() => {
+  if (document.getElementById('loading-screen').style.display !== 'none') {
+    console.warn('Loading timeout — showing login screen');
+    document.getElementById('loading-sub').textContent = 'Tiempo de espera agotado';
+    showLoginScreen();
+  }
+}, 10000);
 
 function handleLogin(){
   const hint=loadHint();
@@ -1733,5 +1754,9 @@ document.getElementById('m-temp').addEventListener('change',function(){
   if(this.value==='otra') cus.focus();
 });
 </script>
+
+<!-- Google APIs loaded AFTER JS is defined so callbacks are available immediately -->
+<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
 </body>
 </html>
