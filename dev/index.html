@@ -3271,13 +3271,28 @@ const GS1_AI_KEYS = Object.keys(GS1_AI).sort((a,b) => b.length - a.length);
 // Separadores que algunas pistolas insertan entre campos variables
 const GS1_SEPARATORS = ['\x1d', '|', '\x1c'];
 
-// Find next known AI position starting after `from`, within `maxLen` chars
-// currentAI: skip this AI to avoid false positives inside variable data
+// AIs that can validly FOLLOW a variable field inside a concatenated GS1 barcode.
+// AIs that START a barcode (00=SSCC, 01=GTIN, 02) or are extremely short/common ('20')
+// are excluded because their digit sequences appear often inside lot numbers and dates,
+// causing false truncation of variable fields.
+const VALID_NEXT_AI = new Set([
+  '10','11','12','13','15','16','17',  // dates and lot
+  '21','22',                           // serial, secondary
+  '30','37',                           // quantities
+  '240','241','242','243',             // catalogue / part number
+  '710','711','712','713','714',       // national healthcare
+  '8012','8013','8026',
+]);
+
+// Find next known AI position starting after `from`, within `maxLen` chars.
+// Only considers AIs in VALID_NEXT_AI — avoids false positives from '00','01','02','20'
+// which appear as digit sequences inside lot numbers and cause premature truncation.
 function findNextAI(s, from, maxLen, currentAI) {
   const end = Math.min(from + maxLen, s.length);
   for (let j = from + 1; j <= end - 2; j++) {
     for (const k of GS1_AI_KEYS) {
-      if (k === currentAI) continue; // don't stop at same AI type (avoids "10" in lot data)
+      if (k === currentAI) continue;
+      if (!VALID_NEXT_AI.has(k)) continue; // skip AIs that start barcodes
       if (s.substring(j, j + k.length) === k) return j;
     }
   }
