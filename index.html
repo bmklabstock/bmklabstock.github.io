@@ -1028,7 +1028,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       <div class="field">
         <label>N° Lote (ejemplo de este código)</label>
         <div class="field-wrap">
-          <input type="text" id="bd-lote" placeholder="Ej: A0123456" oninput="bdAC('lote')" autocomplete="off">
+          <input type="text" id="bd-lote" placeholder="Ej: A0123456" oninput="bdAC('lote');_bdLiveStructure()" autocomplete="off">
           <div class="alta-ac-list" id="bd-ac-lote"></div>
         </div>
         <span class="hint">Usaremos este lote para aprender dónde está ubicado en el código.</span>
@@ -1036,7 +1036,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       <!-- Fila 4: Fecha vencimiento (media columna) -->
       <div class="field">
         <label>Fecha de vencimiento (ejemplo de este código)</label>
-        <input type="date" id="bd-vencimiento">
+        <input type="date" id="bd-vencimiento" oninput="_bdLiveStructure()">
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mid);margin-top:6px;cursor:pointer;font-weight:400;white-space:nowrap;width:fit-content">
           <input type="checkbox" id="bd-chk-sin-venc" onchange="toggleBDSinVenc(this)" style="accent-color:var(--accent);flex-shrink:0">
           No posee fecha de vencimiento
@@ -1044,6 +1044,8 @@ mark{background:transparent;color:var(--accent);font-weight:700}
         <span class="hint">Usaremos esta fecha para extraer el vencimiento de futuros escaneos del mismo producto.</span>
       </div>
     </div>
+    <!-- Preview de estructura aprendida -->
+    <div id="bd-struct-preview" style="display:none;margin-top:14px;padding:10px 14px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:12px;color:var(--blue);line-height:1.6"></div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="guardarEnBD()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3478,45 +3480,16 @@ function processBarcodeCode(code, context = 'alta') {
 
   if (inputEl) { inputEl.classList.add('flash'); setTimeout(()=>inputEl.classList.remove('flash'), 400); }
 
-  // ── 0. Try BD lookup first (highest priority) ─────────────
-  if (context !== 'bd' && bdRecords.length) {
-    // First try raw code structural match
-    if (lookupBDAndFill(rawCode, context)) return;
-
-    // If that fails, try GS1 parse to extract catalogue and look up in BD by catalogue
-    if (rawCode.length > 10) {
-      const preGS1 = parseGS1(rawCode);
-      const preCat = extractCatalog(preGS1);
-      const preLote = (preGS1.lot || '').trim().toUpperCase();
-      const preVenc = gs1ExpToISO(preGS1.expDate || preGS1.bestBefore || '');
-      if (preCat) {
-        const bdMatch = bdRecords.find(r => r.codigoRaw && stripAI(r.catalogo).toLowerCase() === preCat.toLowerCase());
-        if (bdMatch) {
-          // Found by catalogue — fill fields using BD record + GS1-extracted lote/venc
-          if (context === 'alta') {
-            const nombreEl = document.getElementById('alta-nombre');
-            const catEl    = document.getElementById('alta-catalogo');
-            const loteEl   = document.getElementById('alta-lote');
-            const vencEl   = document.getElementById('alta-vencimiento');
-            if (nombreEl && !nombreEl.value.trim()) { nombreEl.value = bdMatch.nombre;   flashFill('alta-nombre'); }
-            if (catEl    && !catEl.value.trim())    { catEl.value    = bdMatch.catalogo; flashFill('alta-catalogo'); }
-            if (loteEl   && !loteEl.value.trim() && preLote) { loteEl.value = preLote; flashFill('alta-lote'); }
-            if (vencEl   && !vencEl.value && preVenc) { vencEl.value = preVenc; flashFill('alta-vencimiento'); document.getElementById('chk-sin-venc').checked = false; }
-            inferAndSetTemp(bdMatch.catalogo, bdMatch.temp);
-            const statusEl = document.getElementById('barcode-status');
-            if (statusEl) { statusEl.className = 'barcode-status found'; statusEl.textContent = `✓ BD (GS1): ${bdMatch.nombre} · Cat: ${bdMatch.catalogo}${preLote?' · Lote: '+preLote:''}${preVenc?' · Vence: '+preVenc:''}`; }
-            toast('✓ Autocompletado desde BD (catálogo GS1)', 'success');
-            updatePreview();
-          } else if (context === 'baja') {
-            const q = preLote || bdMatch.catalogo || bdMatch.nombre;
-            const searchEl = document.getElementById('baja-search-input');
-            if (searchEl) { searchEl.value = q; buscarBaja(); }
-            const statusEl = document.getElementById('barcode-status-baja');
-            if (statusEl) { statusEl.className = 'barcode-status found'; statusEl.textContent = `✓ BD (GS1): ${bdMatch.nombre}${preLote?' · Lote: '+preLote:''}…`; }
-            toast(`✓ BD: ${bdMatch.nombre} — resultados abajo`, 'success');
-          }
-          return;
-        }
+  // ── 0. BD primero — siempre ───────────────────────────────
+  // Si hay registros en la BD, buscar ahí. Si no hay match → avisar.
+  // Solo si no hay ningún registro en BD usamos GS1 como fallback.
+  if (context !== 'bd') {
+    if (bdRecords.length) {
+      if (lookupBDAndFill(rawCode, context)) return;
+      // Hay BD pero no encontró match → avisar y caer a GS1
+      if (statusEl) {
+        statusEl.className = 'barcode-status warn';
+        statusEl.textContent = '⚠ Insumo no encontrado en BD — intentando leer código...';
       }
     }
   }
@@ -4281,126 +4254,207 @@ async function syncBD() {
   }
 }
 
-// ── Lookup a raw code in BD ───────────────────────────────────
-// Returns match or null. Tries:
-//  1. Exact match on codigoRaw
-//  2. The stored raw code is a substring of the scanned code (same product, different lote)
-//  3. The scanned code contains the stored codigo as prefix/core
+// ═══════════════════════════════════════════════════════════════
+// BD LOOKUP — estrategia de matching posicional
+// ═══════════════════════════════════════════════════════════════
+//
+// FILOSOFÍA: la BD guarda UN código de ejemplo por producto junto con el
+// lote y vencimiento que el usuario confirmó para ese código.
+// Con esos datos aprendemos:
+//   • en qué posición (offset) vive el lote dentro del código
+//   • en qué posición vive la fecha de vencimiento
+//   • cuántos chars "fixos" hay antes y después de cada campo variable
+//
+// Para un nuevo escaneo del mismo producto:
+//   1. Verificamos similitud estructural (longitud similar, prefijo/sufijo común)
+//   2. Extraemos el lote por offset + longitud aprendidos
+//   3. Extraemos el vencimiento por offset aprendido (fechas suelen ser YYMMDD)
+//
+// Este approach funciona para códigos propietarios (AmoyDx, Thermo interno, etc.)
+// donde el GS1 parser puede confundirse leyendo dígitos como AIs.
+// ───────────────────────────────────────────────────────────────
+
+// Determina si un código es GS1 "real" (tiene GTIN o AI 01/10/17 con estructura válida).
+// Distingue códigos propietarios que el parser GS1 parsea incorrectamente.
+function isRealGS1(code) {
+  const p = parseGS1(code);
+  // GS1 real: tiene GTIN (AI 01, 14 dígitos) o combinación lote+fecha con AI 17
+  if (p.gtin && /^\d{14}$/.test(p.gtin)) return true;
+  if (p.lot && p.expDate && /^\d{6}$/.test(p.expDate)) return true;
+  return false;
+}
+
+// ── Aprender la estructura de un código de ejemplo ─────────────
+// Devuelve un objeto {loteOffset, loteLen, vencOffset, vencLen, fixedPrefix, fixedSuffix}
+// o null si no puede aprender nada útil.
+function learnBDStructure(storedCode, storedLote, storedVenc) {
+  if (!storedCode) return null;
+  const codeUp = storedCode.toUpperCase().replace(/[\s\x1d|]/g, '');
+  const loteClean = (storedLote || '').toUpperCase().replace(/\s+/g, '');
+
+  let loteOffset = -1, loteLen = 0;
+  if (loteClean.length >= 3) {
+    loteOffset = codeUp.indexOf(loteClean);
+    if (loteOffset >= 0) loteLen = loteClean.length;
+  }
+
+  // Para vencimiento: buscar el string YYMMDD en el código
+  let vencOffset = -1, vencLen = 6;
+  if (storedVenc && storedVenc !== 'NA') {
+    const vm = storedVenc.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (vm) {
+      const yymmdd = vm[1].slice(2) + vm[2] + vm[3];
+      const vi = codeUp.indexOf(yymmdd);
+      if (vi >= 0) { vencOffset = vi; }
+    }
+  }
+
+  // Prefijo fijo: chars antes del primer campo variable (lote o venc)
+  const firstVarOffset = [loteOffset, vencOffset].filter(o => o >= 0).reduce((a,b)=>Math.min(a,b), codeUp.length);
+  const fixedPrefix = codeUp.substring(0, firstVarOffset);
+
+  // Sufijo fijo: chars después del último campo variable
+  let lastVarEnd = 0;
+  if (loteOffset >= 0) lastVarEnd = Math.max(lastVarEnd, loteOffset + loteLen);
+  if (vencOffset >= 0) lastVarEnd = Math.max(lastVarEnd, vencOffset + vencLen);
+  const fixedSuffix = codeUp.substring(lastVarEnd);
+
+  return { loteOffset, loteLen, vencOffset, vencLen, fixedPrefix, fixedSuffix, totalLen: codeUp.length };
+}
+
+// ── Intentar extraer lote y venc de un nuevo código dado la estructura aprendida ──
+// Devuelve { lote, venc } donde cada campo puede ser '' si no se encontró.
+// confidence: 0–100 (qué tan seguro estamos del match)
+function applyBDStructure(newCode, struct) {
+  if (!struct) return null;
+  const newUp = newCode.toUpperCase().replace(/[\s\x1d|]/g, '');
+
+  // ── STEP 1: Verificar prefijo fijo ──────────────────────────
+  // Si hay un prefijo largo (≥3 chars), el nuevo código debe compartirlo.
+  // Si el prefijo es corto (<3), lo ignoramos para no ser demasiado estrictos.
+  if (struct.fixedPrefix.length >= 3) {
+    // Tolerancia: los primeros N chars deben coincidir exactamente
+    if (!newUp.startsWith(struct.fixedPrefix)) return null;
+  }
+
+  // ── STEP 2: Verificar longitud similar ─────────────────────
+  // Toleramos diferencias de hasta 10 chars (lotes de diferente longitud)
+  const lenDiff = Math.abs(newUp.length - struct.totalLen);
+  if (lenDiff > 10) return null;
+
+  // ── STEP 3: Extraer lote por offset ────────────────────────
+  let extractedLote = '';
+  if (struct.loteOffset >= 0 && struct.loteLen > 0) {
+    // El offset del lote puede desplazarse si el prefijo varió — usar el offset aprendido
+    // directamente (el prefijo fijo garantiza alineación)
+    const loteRaw = newUp.substring(struct.loteOffset, struct.loteOffset + struct.loteLen);
+    if (loteRaw.length === struct.loteLen) {
+      extractedLote = loteRaw.trim();
+    } else {
+      // offset exacto falló — buscar un substring de la misma longitud en zona cercana (±3)
+      const searchStart = Math.max(0, struct.loteOffset - 3);
+      const searchEnd   = Math.min(newUp.length - struct.loteLen, struct.loteOffset + 3);
+      for (let i = searchStart; i <= searchEnd; i++) {
+        const candidate = newUp.substring(i, i + struct.loteLen);
+        if (candidate.length === struct.loteLen) { extractedLote = candidate; break; }
+      }
+    }
+  }
+
+  // ── STEP 4: Extraer vencimiento por offset ─────────────────
+  let extractedVenc = '';
+  if (struct.vencOffset >= 0) {
+    const vencRaw = newUp.substring(struct.vencOffset, struct.vencOffset + struct.vencLen);
+    if (/^\d{6}$/.test(vencRaw)) {
+      extractedVenc = gs1ExpToISO(vencRaw) || '';
+    }
+  }
+
+  return { lote: extractedLote, venc: extractedVenc };
+}
+
+// ── Función principal de lookup ────────────────────────────────
+// FILOSOFÍA: dos fases separadas.
+//   FASE 1 — Identificar a qué producto BD pertenece el código (¿es este producto?)
+//   FASE 2 — Extraer los campos variables (lote, venc) del código nuevo
+//
+// Si la Fase 1 encuentra el producto pero la Fase 2 no puede extraer el lote,
+// devolvemos el match igual — el producto está en BD y eso ya es valioso.
+// NUNCA caemos al GS1 parser para un producto que ya está en BD.
 function lookupInBD(rawCode) {
-  const raw = rawCode.trim();
-
-  // ── 1. Exact match (mismo código guardado) ─────────────────────
-  let m = bdRecords.find(r => r.codigoRaw === raw);
-  if (m) return { record: m, extractedLote: m.lote, extractedVenc: m.vencimiento };
-
-  // ── 2. GS1-first match — si ambos son GS1, comparar por GTIN (AI 01) ──
-  // El GTIN identifica el producto de forma única. Si coincide, es el mismo
-  // producto aunque el lote/venc sean distintos.
-  const newParsed = parseGS1(raw);
-  if (newParsed.gtin) {
-    for (const r of bdRecords) {
-      if (!r.codigoRaw) continue;
-      const storedParsed = parseGS1(r.codigoRaw);
-      if (storedParsed.gtin && storedParsed.gtin === newParsed.gtin) {
-        // Mismo GTIN = mismo producto. Extraer lote y venc del nuevo código vía GS1.
-        const extractedLote = (newParsed.lot || '').trim().toUpperCase() || r.lote;
-        const extractedVenc = gs1ExpToISO(newParsed.expDate || newParsed.bestBefore || '') || r.vencimiento;
-        return { record: r, extractedLote, extractedVenc };
-      }
-    }
+  // Normalizar: limpiar separadores textuales y de formato parentizado
+  let raw = rawCode.trim();
+  // Formato (01)xxx(10)xxx → separar con \x1d
+  if (/^\(\d{2,4}\)/.test(raw)) {
+    raw = raw.replace(/\((\d{2,4})\)/g, '\x1d$1').replace(/^\x1d/, '');
   }
+  for (const sep of ['<GS>','<RS>','<EOT>']) raw = raw.split(sep).join('\x1d');
+  const rawUp = raw.toUpperCase().replace(/[\s\x1d|<>]/g, '');
 
-  // ── 3. GS1 catálogo (AI 240) match ─────────────────────────────
-  // Si el nuevo código tiene catálogo GS1 (AI 240) y coincide con uno en BD.
-  const newCat = extractCatalog(newParsed);
-  if (newCat) {
-    for (const r of bdRecords) {
-      if (!r.codigoRaw) continue;
-      if (stripAI(r.catalogo).toLowerCase() === newCat.toLowerCase()) {
-        const extractedLote = (newParsed.lot || '').trim().toUpperCase() || r.lote;
-        const extractedVenc = gs1ExpToISO(newParsed.expDate || newParsed.bestBefore || '') || r.vencimiento;
-        return { record: r, extractedLote, extractedVenc };
-      }
-    }
-  }
-
-  // ── 4. Structural match (no-GS1) — solo para códigos simples ───
-  // Solo aplica cuando el código almacenado NO es GS1 (códigos propietarios,
-  // barcodes de fabricante sin GTIN). Requiere guards estrictos.
+  // ── FASE 1: Match exacto ──────────────────────────────────────
   for (const r of bdRecords) {
     if (!r.codigoRaw) continue;
-    // Saltar si el código guardado parece GS1 (longitud >20 y empieza con AI conocido)
-    const storedParsed = parseGS1(r.codigoRaw);
-    const storedIsGS1  = Object.keys(storedParsed).length > 0;
-    if (storedIsGS1) continue; // ya fue manejado arriba; no hacer structural sobre GS1
-    const extractedLote = extractLoteFromCode(raw, r.codigoRaw, r.lote);
-    if (extractedLote !== null) {
-      const extractedVenc = extractVencFromCode(raw, r.codigoRaw, r.vencimiento);
-      return { record: r, extractedLote, extractedVenc };
+    const bdNorm = r.codigoRaw.toUpperCase().replace(/[\s\x1d|<>]/g, '');
+    if (bdNorm === rawUp) {
+      return { record: r, extractedLote: r.lote, extractedVenc: r.vencimiento };
     }
+  }
+
+  // ── FASE 2: Match estructural por prefijo fijo + longitud similar ─────
+  // El catálogo es siempre el mismo para un producto; el lote y venc cambian.
+  // La BD tiene un código de ejemplo: aprendemos dónde está el lote/venc
+  // y extraemos esas posiciones del código nuevo.
+  for (const r of bdRecords) {
+    if (!r.codigoRaw) continue;
+    const struct = learnBDStructure(r.codigoRaw, r.lote, r.vencimiento);
+    if (!struct) continue;
+
+    // Identificación: prefijo fijo debe coincidir (≥3 chars) y longitud similar (±3)
+    const prefixOk = struct.fixedPrefix.length >= 3
+      ? rawUp.startsWith(struct.fixedPrefix)
+      : Math.abs(rawUp.length - struct.totalLen) <= 3;
+    const lenOk = Math.abs(rawUp.length - struct.totalLen) <= 5;
+
+    if (!prefixOk || !lenOk) continue;
+
+    // Extraer lote: desde el offset aprendido, mismo largo que el ejemplo
+    // (los lotes del mismo producto tienen siempre el mismo largo)
+    let extractedLote = '';
+    if (struct.loteOffset >= 0 && struct.loteLen > 0) {
+      const candidate = rawUp.substring(struct.loteOffset, struct.loteOffset + struct.loteLen);
+      if (candidate.length === struct.loteLen) extractedLote = candidate;
+    }
+
+    // Extraer vencimiento: offset fijo, 6 dígitos YYMMDD
+    let extractedVenc = '';
+    if (struct.vencOffset >= 0) {
+      const vencRaw = rawUp.substring(struct.vencOffset, struct.vencOffset + 6);
+      if (/^\d{6}$/.test(vencRaw)) extractedVenc = gs1ExpToISO(vencRaw) || '';
+    }
+
+    return {
+      record: r,
+      extractedLote: extractedLote || r.lote,
+      extractedVenc: extractedVenc || r.vencimiento,
+    };
   }
 
   return null;
 }
 
-// Learn lote position from example, apply to new code
-// storedCode: the original code scanned when registering
-// storedLote: the lote written by the user for that code
-// newCode: the new code being scanned now
-// Returns the lote extracted from newCode, or null if no structural match
+// Compat shims — ya no se usan directamente pero se conservan por si acaso
 function extractLoteFromCode(newCode, storedCode, storedLote) {
-  if (!storedCode || !storedLote) return null;
-  const loteClean = storedLote.toUpperCase().replace(/\s+/g, '');
-  const codeUp    = storedCode.toUpperCase().replace(/\s+/g, '');
-  const newUp     = newCode.toUpperCase().replace(/\s+/g, '');
-
-  const loteIdx = codeUp.indexOf(loteClean);
-  if (loteIdx < 0) return null;
-
-  // GUARD 1: el prefijo debe tener al menos 4 chars para ser significativo
-  // (evita que un prefijo vacío o muy corto haga match con cualquier código)
-  const prefix = codeUp.substring(0, loteIdx);
-  if (prefix.length < 4) return null;
-  if (!newUp.startsWith(prefix)) return null;
-
-  // GUARD 2: el sufijo después del lote también debe coincidir
-  const suffix = codeUp.substring(loteIdx + loteClean.length);
-  const newSuffix = newUp.substring(loteIdx + loteClean.length);
-  if (suffix.length > 0 && !newSuffix.startsWith(suffix)) return null;
-
-  // GUARD 3: la longitud total del nuevo código debe ser similar
-  // (tolera hasta 8 chars de diferencia por variación en longitud del lote)
-  const lenDiff = Math.abs(newUp.length - codeUp.length);
-  if (lenDiff > 8) return null;
-
-  const extracted = newUp.substring(loteIdx, loteIdx + loteClean.length);
-  if (extracted.length !== loteClean.length) return null;
-
-  return newCode.substring(loteIdx, loteIdx + loteClean.length).trim();
+  const struct = learnBDStructure(storedCode, storedLote, '');
+  if (!struct) return null;
+  const extracted = applyBDStructure(newCode, struct);
+  return extracted ? (extracted.lote || null) : null;
 }
 
-// Extract vencimiento from new code using stored example (YYMMDD format in code)
-// storedCode: original scanned code; storedVenc: ISO date 'YYYY-MM-DD' stored in BD
-// Returns ISO date extracted from newCode or null
 function extractVencFromCode(newCode, storedCode, storedVenc) {
-  if (!storedCode || !storedVenc) return null;
-  // Convert ISO date back to YYMMDD to search in code
-  const m = storedVenc.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const yymmdd = m[1].slice(2) + m[2] + m[3]; // YYMMDD
-  const codeUp = storedCode.toUpperCase().replace(/\s+/g, '');
-  const newUp  = newCode.toUpperCase().replace(/\s+/g, '');
-
-  const vencIdx = codeUp.indexOf(yymmdd);
-  if (vencIdx < 0) return null;
-
-  const prefix = codeUp.substring(0, vencIdx);
-  if (!newUp.startsWith(prefix)) return null;
-
-  const extracted = newUp.substring(vencIdx, vencIdx + 6);
-  if (extracted.length !== 6 || !/^\d{6}$/.test(extracted)) return null;
-
-  return gs1ExpToISO(extracted); // Convert YYMMDD → ISO
+  const struct = learnBDStructure(storedCode, '', storedVenc);
+  if (!struct) return null;
+  const extracted = applyBDStructure(newCode, struct);
+  return extracted ? (extracted.venc || null) : null;
 }
 
 // ── Scanner for BD page ───────────────────────────────────────
@@ -4447,23 +4501,22 @@ function processBDBarcodeCode(raw) {
   // Also warn if the same catalogue already has a different raw code registered
   // (after BD lookup fills the fields, we can check by catalogo)
 
-  // Try GS1 parse to pre-fill what we can
-  const parsed = raw.length > 10 ? parseGS1(raw) : {};
-  const cat    = extractCatalog(parsed);
-  const lote   = (parsed.lot || '').trim().toUpperCase();
-  const venc   = gs1ExpToISO(parsed.expDate || parsed.bestBefore || '');
+  // ── Intentar GS1 real (no forzar GS1 en códigos propietarios) ──
+  const gs1Real = isRealGS1(raw);
+  const parsed  = gs1Real ? parseGS1(raw) : {};
+  const cat     = extractCatalog(parsed);
+  const lote    = (parsed.lot || '').trim().toUpperCase();
+  const venc    = gs1ExpToISO(parsed.expDate || parsed.bestBefore || '');
 
   if (cat)  { document.getElementById('bd-catalogo').value    = cat;  flashFill('bd-catalogo'); }
   if (lote) { document.getElementById('bd-lote').value        = lote; flashFill('bd-lote'); }
   if (venc) { document.getElementById('bd-vencimiento').value = venc; flashFill('bd-vencimiento'); }
 
   // ── Check if this catalogue already has a raw code registered ──────────────
-  // Use GS1-extracted cat first; fall back to whatever is already typed in the field
   const catFinal = cat || document.getElementById('bd-catalogo').value.trim();
   if (catFinal) {
     const dupCat = bdRecords.find(r => r.codigoRaw && stripAI(r.catalogo).toLowerCase() === stripAI(catFinal).toLowerCase());
     if (dupCat) {
-      // Pre-fill fields from existing record so user can review/update, but don't block
       if (!document.getElementById('bd-nombre').value.trim())    document.getElementById('bd-nombre').value    = dupCat.nombre;
       if (!document.getElementById('bd-catalogo').value.trim())  document.getElementById('bd-catalogo').value  = dupCat.catalogo;
       if (!document.getElementById('bd-lote').value.trim() && dupCat.lote) document.getElementById('bd-lote').value = dupCat.lote;
@@ -4477,8 +4530,7 @@ function processBDBarcodeCode(raw) {
     }
   }
 
-  // ── Also warn if the same product name already exists (no catalogue match) ─
-  // This catches the case where GS1 gave no catalogue and the field is empty
+  // ── Warn si el mismo nombre ya existe ──────────────────────────
   if (!catFinal) {
     const nomField = document.getElementById('bd-nombre').value.trim().toLowerCase();
     if (nomField.length >= 4) {
@@ -4491,13 +4543,33 @@ function processBDBarcodeCode(raw) {
     }
   }
 
-  statusEl.className = statusEl.className.includes('notfound') ? statusEl.className
-    : 'barcode-status ' + (Object.keys(parsed).length ? 'warn' : 'idle');
+  const modoStr = gs1Real ? `GS1${cat?' · Cat:'+cat:''}${lote?' · Lote:'+lote:''}` : 'Código propietario (no GS1)';
   if (!statusEl.className.includes('notfound')) {
-    statusEl.textContent = Object.keys(parsed).length
-      ? `GS1 detectado${cat?' · Cat:'+cat:''}${lote?' · Lote:'+lote:''} — completá los datos y guardá`
-      : 'Código registrado — completá los datos y guardá';
+    statusEl.className = 'barcode-status idle';
+    statusEl.textContent = `${modoStr} — completá nombre, catálogo, lote y vencimiento de ESTE código y guardá`;
   }
+
+  // ── Panel de debug: mostrar estructura que se aprenderá ────────
+  _bdShowStructurePreview(raw);
+}
+
+// Muestra en la página BD qué estructura aprenderá el sistema cuando se guarde el código.
+// Se actualiza dinámicamente cuando el usuario completa los campos.
+function _bdShowStructurePreview(raw) {
+  let panel = document.getElementById('bd-struct-preview');
+  if (!panel) return; // panel no existe en el HTML actual — se inyecta abajo
+  const lote = document.getElementById('bd-lote')?.value.trim();
+  const venc = document.getElementById('bd-vencimiento')?.value;
+  if (!raw || (!lote && !venc)) { panel.style.display = 'none'; return; }
+  const struct = learnBDStructure(raw, lote, venc);
+  if (!struct) { panel.style.display = 'none'; return; }
+  const parts = [];
+  if (struct.fixedPrefix) parts.push(`Prefijo fijo: <code>"${struct.fixedPrefix}"</code>`);
+  if (struct.loteOffset >= 0) parts.push(`Lote en posición ${struct.loteOffset} (${struct.loteLen} chars)`);
+  if (struct.vencOffset >= 0) parts.push(`Vencimiento en posición ${struct.vencOffset} (6 chars YYMMDD)`);
+  if (struct.fixedSuffix) parts.push(`Sufijo fijo: <code>"${struct.fixedSuffix}"</code>`);
+  panel.innerHTML = '🔬 Estructura aprendida: ' + (parts.join(' · ') || '(sin campos variables identificados)');
+  panel.style.display = 'block';
 }
 
 // ── Save to BD ────────────────────────────────────────────────
@@ -4793,6 +4865,12 @@ async function prepoblarBD() {
   }
 }
 
+function _bdLiveStructure() {
+  const raw  = document.getElementById('bd-codigo-raw')?.value.trim();
+  if (!raw) return;
+  _bdShowStructurePreview(raw);
+}
+
 function toggleBDSinVenc(chk) {
   const venc = document.getElementById('bd-vencimiento');
   if (chk.checked) { venc.value = ''; venc.disabled = true; venc.style.opacity = '.4'; }
@@ -4814,46 +4892,53 @@ function limpiarBD() {
 }
 
 // ── Hook BD lookup into processBarcodeCode ────────────────────
-// Called BEFORE GS1 parse — BD takes priority
+// Called BEFORE GS1 parse — BD takes priority.
+// Si retorna true, el GS1 parser NO se ejecuta para este código.
 function lookupBDAndFill(rawCode, context) {
   const match = lookupInBD(rawCode);
   if (!match) return false;
 
   const { record, extractedLote, extractedVenc } = match;
-  const isSameLote = extractedLote === record.lote;
 
   if (context === 'alta') {
-    const nombreEl  = document.getElementById('alta-nombre');
-    const catEl     = document.getElementById('alta-catalogo');
-    const loteEl    = document.getElementById('alta-lote');
-    const vencEl    = document.getElementById('alta-vencimiento');
+    const nombreEl = document.getElementById('alta-nombre');
+    const catEl    = document.getElementById('alta-catalogo');
+    const loteEl   = document.getElementById('alta-lote');
+    const vencEl   = document.getElementById('alta-vencimiento');
 
     if (nombreEl && !nombreEl.value.trim())  { nombreEl.value  = record.nombre;   flashFill('alta-nombre'); }
     if (catEl    && !catEl.value.trim())     { catEl.value     = record.catalogo; flashFill('alta-catalogo'); }
-    if (loteEl   && !loteEl.value.trim() && extractedLote) { loteEl.value = extractedLote; flashFill('alta-lote'); }
-    if (vencEl   && !vencEl.value && extractedVenc)        {
+    // Lote: siempre llenar con el extraído (puede ser el del ejemplo si no se pudo extraer)
+    if (loteEl && !loteEl.value.trim() && extractedLote) { loteEl.value = extractedLote; flashFill('alta-lote'); }
+    if (vencEl && !vencEl.value && extractedVenc && extractedVenc !== 'NA') {
       vencEl.value = extractedVenc;
       flashFill('alta-vencimiento');
       document.getElementById('chk-sin-venc').checked = false;
+    } else if (record.vencimiento === 'NA' || record.vencimiento === '') {
+      document.getElementById('chk-sin-venc').checked = true;
+      toggleSinVenc(document.getElementById('chk-sin-venc'));
     }
     inferAndSetTemp(record.catalogo, record.temp);
 
     const statusEl = document.getElementById('barcode-status');
     if (statusEl) {
+      const loteStr = extractedLote ? ` · Lote: ${extractedLote}` : '';
+      const vencStr = extractedVenc && extractedVenc !== 'NA' ? ` · Vence: ${extractedVenc.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3/$2/$1')}` : '';
       statusEl.className = 'barcode-status found';
-      statusEl.textContent = `✓ BD: ${record.nombre} · Cat: ${record.catalogo}` +
-        (extractedLote && !isSameLote ? ` · Lote: ${extractedLote}` : '') +
-        (extractedVenc && extractedVenc !== record.vencimiento ? ` · Vence: ${extractedVenc}` : '');
+      statusEl.textContent = `✓ BD: ${record.nombre} · Cat: ${record.catalogo}${loteStr}${vencStr}`;
     }
-    toast('✓ Autocompletado desde base de datos', 'success');
+    toast(`✓ BD: ${record.nombre}`, 'success');
+    updatePreview();
   } else if (context === 'baja') {
+    // Para baja: buscar por lote extraído primero, luego catálogo, luego nombre
     const q = extractedLote || record.catalogo || record.nombre;
     const searchEl = document.getElementById('baja-search-input');
     if (searchEl) { searchEl.value = q; buscarBaja(); }
     const statusEl = document.getElementById('barcode-status-baja');
     if (statusEl) {
+      const loteStr = extractedLote ? ` · Lote: ${extractedLote}` : '';
       statusEl.className = 'barcode-status found';
-      statusEl.textContent = `✓ BD: ${record.nombre} · buscando${extractedLote?' lote: '+extractedLote:''}…`;
+      statusEl.textContent = `✓ BD: ${record.nombre}${loteStr} — resultados abajo`;
     }
     toast(`✓ BD: ${record.nombre} — resultados abajo`, 'success');
   }
