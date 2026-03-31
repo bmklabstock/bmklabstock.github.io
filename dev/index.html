@@ -1354,6 +1354,7 @@ let stock         = [];       // [{id, sheetName, rowIndex, fecha, nombre, ...}]
 let stockLookup   = [];       // igual que stock pero sin hojas excluidas (2022, 2023)
 let sheetNames    = [];       // ['2024','2025',...]
 const LOOKUP_EXCLUDE_YEARS = ['2022','2023']; // hojas con datos corruptos, excluidas del lookup
+let CFG = { diasVence: 60, diasStockBajo: 60, umbralStockBajo: 2, diasVencDash: 90 };
 let nextLocalId   = 1;
 let bajaSelectedId = null;
 let consultaFilter = 'todos';
@@ -5346,7 +5347,6 @@ document.addEventListener('click', e => {
 // CONFIG — parámetros del sistema (persistidos en Sheets CONFIG)
 // ═══════════════════════════════════════════════════════════════
 const CONFIG_SHEET = 'LABSTOCK_CONFIG';
-let CFG = { diasVence: 60, diasStockBajo: 60, umbralStockBajo: 2, diasVencDash: 90 };
 
 async function cargarConfig() {
   try {
