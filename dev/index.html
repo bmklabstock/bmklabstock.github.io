@@ -1458,7 +1458,12 @@ function maybeReady() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('loading-overlay').style.display = 'flex';
     gapi.client.setToken({ access_token: saved.access_token });
-    afterLogin();
+    afterLogin().catch(e => {
+      console.error('afterLogin failed:', e);
+      document.getElementById('loading-overlay').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      setLoginStatus('Error al conectar. Volvé a iniciar sesión.', true);
+    });
   } else {
     const hint = loadHint();
     if (hint) {
@@ -2890,6 +2895,10 @@ async function confirmarBaja() {
     cancelarBaja();
     document.getElementById('baja-results').classList.remove('show');
     const bsi = document.getElementById('baja-search-input'); if(bsi) bsi.value='';
+    // Limpiar scanner y devolver foco para escanear el próximo
+    clearBarcode('baja');
+    const barcodeInput = document.getElementById('barcode-input-baja');
+    if (barcodeInput) { barcodeInput.value = ''; setTimeout(() => barcodeInput.focus(), 100); }
     await syncFromSheets();
   } catch(e) {
     console.error(e);
@@ -5428,6 +5437,8 @@ async function loadAdminUsers() {
     renderAdminUsers();
   } catch(e) {
     toast('Error al cargar usuarios: ' + e.message, 'error');
+    const tbody = document.getElementById('admin-users-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--red);padding:24px">Error al cargar: ${e.message}</td></tr>`;
   }
 }
 
