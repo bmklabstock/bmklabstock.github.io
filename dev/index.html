@@ -1596,15 +1596,21 @@ async function afterLogin() {
       const initials = (info.name||'U').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
       wrap.innerHTML = `<div class="user-avatar-placeholder">${initials}</div>`;
     }
-  } catch(e) { console.error('afterLogin error', e); }
 
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('loading-overlay').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  applyRoleUI(currentUserRole || 'lector');
-  cargarConfig(); // cargar parámetros guardados
-  setAltaFechaHoy();
-  await syncFromSheets();
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('loading-overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    applyRoleUI(currentUserRole);
+    cargarConfig(); // cargar parámetros guardados
+    setAltaFechaHoy();
+    await syncFromSheets();
+
+  } catch(e) {
+    console.error('afterLogin error', e);
+    document.getElementById('loading-overlay').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    setLoginStatus('Error al conectar. Volvé a iniciar sesión.', true);
+  }
 }
 
 function setLoginStatus(msg, isError=false) {
