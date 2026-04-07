@@ -5628,17 +5628,16 @@ function runAuditoria() {
       if (i._estado === 'baja') continue;
       const loteClean = i.lote.trim();
       if (!loteClean) continue;
-      // Clave siempre incluye el lote completo (con letra si la tiene), catálogo, nombre y fecha
-      // Así "204935 A" y "204935 B" tienen claves distintas y no se confunden entre sí
-      const k = [loteClean.toLowerCase(), i.catalogo.trim().toLowerCase(), i.nombre.trim().toLowerCase(), (i.fechaLlegada||'').trim()].join('||');
+      const k = [loteClean.toLowerCase(), i.catalogo.trim().toLowerCase(), i.nombre.trim().toLowerCase(), (i.fecha||'').trim()].join('||');
       lotCount[k] = (lotCount[k] || []);
       lotCount[k].push(i);
     }
     for (const [, items] of Object.entries(lotCount)) {
       if (items.length > 1) {
+        const hojas = [...new Set(items.map(i => i.sheetName))].join(', ');
         issues.warn.push({
           icon: '🔁', title: `Posible duplicado: "${items[0].lote}" — ${items[0].nombre}`,
-          desc: `${items.length} filas idénticas (mismo lote, catálogo, nombre y fecha de llegada). Verificar si es un error de carga.`
+          desc: `${items.length} filas idénticas (mismo lote, catálogo, nombre y fecha de llegada). Hoja${hojas.includes(',') ? 's' : ''}: ${hojas}. Verificar si es un error de carga.`
         });
       }
     }
