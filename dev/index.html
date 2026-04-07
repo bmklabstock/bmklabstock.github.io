@@ -1206,7 +1206,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       </div>
       <div class="table-wrap" style="max-height:520px">
         <table class="log-table">
-          <thead><tr><th>Fecha / Hora</th><th>Usuario</th><th>Acción</th><th>Insumo</th><th>Catálogo</th><th>Lote</th><th>Detalle</th></tr></thead>
+          <thead><tr><th>Fecha / Hora</th><th>Usuario</th><th>Acción</th><th>Insumo</th><th>Catálogo</th><th>Lote</th><th>Detalle</th><th>Cambios</th></tr></thead>
           <tbody id="admin-log-tbody"><tr class="loading-row"><td colspan="7"><span class="spinner"></span>Cargando…</td></tr></tbody>
         </table>
       </div>
@@ -3333,10 +3333,11 @@ async function guardarModificacion() {
   if (!updates.fecha) { toast('La fecha de llegada es obligatoria', 'error'); return; }
 
   // Snapshot BEFORE applying changes
-  const estadoAnteriorMod = snapshotItem(item);
+  const _itemAntes = Object.assign({}, item); // clone before applying changes
   // NOW close modal
   cerrarModal();
   Object.assign(item, updates);
+  const estadoAnteriorMod = diffSnapshot(_itemAntes, item); // only changed fields
 
   toast('Guardando…', 'info');
   try {
@@ -3355,7 +3356,7 @@ async function guardarModificacion() {
     });
     toast('✓ Insumo modificado correctamente', 'success');
     await writeLog('Modificación', item,
-      `Temp: ${item.tempAlmacen} · Venc: ${item.vencimiento} · Fin: ${item.finConsumo||'—'}`,
+      '',
       estadoAnteriorMod);
     consultaSelected.clear();
     updateConsultaActions();
@@ -3920,7 +3921,7 @@ window.showPage = function(id) {
 // ═══════════════════════════════════════════════════════════════
 const LOG_SHEET = 'LOG';
 
-const LOG_HEADER = ['Timestamp','Usuario','Acción','Insumo','Catálogo','Lote','Detalle','Estado anterior'];
+const LOG_HEADER = ['Timestamp','Usuario','Acción','Insumo','Catálogo','Lote','Detalle','Cambios'];
 let _logSheetReady = false; // cache: avoid repeated spreadsheets.get calls
 async function ensureLogSheet() {
   if (_logSheetReady) return; // already verified this session
@@ -3937,7 +3938,7 @@ async function ensureLogSheet() {
     spreadsheetId: SHEET_ID, range: `${LOG_SHEET}!A1:H1`
   });
   const currentHeader = headerResp.result.values?.[0] || [];
-  if (currentHeader.length < LOG_HEADER.length || currentHeader[7] !== LOG_HEADER[7]) {
+  if (currentHeader.length < LOG_HEADER.length || currentHeader[7] !== LOG_HEADER[7] || currentHeader[7] === 'Estado anterior') {
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `${LOG_SHEET}!A1:H1`,
@@ -3974,6 +3975,7 @@ function snapshotItem(item) {
   if (item.nombre)        parts.push(`Nombre: ${item.nombre}`);
   if (item.catalogo)      parts.push(`Cat: ${item.catalogo}`);
   if (item.lote)          parts.push(`Lote: ${item.lote}`);
+  if (item.fecha)         parts.push(`Llegada: ${item.fecha}`);
   if (item.vencimiento)   parts.push(`Venc: ${item.vencimiento}`);
   if (item.inicioConsumo) parts.push(`Inicio: ${item.inicioConsumo}`);
   if (item.finConsumo)    parts.push(`Fin: ${item.finConsumo}`);
@@ -3983,13 +3985,36 @@ function snapshotItem(item) {
   return parts.join(' · ');
 }
 
+function diffSnapshot(antes, despues) {
+  // Compare two items field by field, return only changed fields as "Campo: antes → después"
+  const fields = [
+    { key: 'fecha',         label: 'Fecha llegada' },
+    { key: 'nombre',        label: 'Nombre' },
+    { key: 'catalogo',      label: 'Catálogo' },
+    { key: 'lote',          label: 'Lote' },
+    { key: 'vencimiento',   label: 'Vencimiento' },
+    { key: 'inicioConsumo', label: 'Inicio consumo' },
+    { key: 'finConsumo',    label: 'Fin consumo' },
+    { key: 'tempAlmacen',   label: 'Temperatura' },
+    { key: 'rendimiento',   label: 'Rendimiento' },
+    { key: 'obs',           label: 'Observaciones' },
+  ];
+  const changes = [];
+  for (const { key, label } of fields) {
+    const a = (antes[key] || '').toString().trim();
+    const b = (despues[key] || '').toString().trim();
+    if (a !== b) changes.push(`${label}: ${a||'—'} → ${b||'—'}`);
+  }
+  return changes.join(' | ');
+}
+
 async function loadHistorial(item) {
   const listEl = document.getElementById('modal-history-list');
   listEl.innerHTML = '<div style="color:var(--dim);font-size:13px;padding:16px 0">Cargando historial…</div>';
   try {
     const resp = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${LOG_SHEET}!A:G`
+      range: `${LOG_SHEET}!A:H`
     });
     const rows = (resp.result.values || []).slice(1); // skip header
     // Filter rows matching this item's lote (most specific identifier)
@@ -4000,15 +4025,17 @@ async function loadHistorial(item) {
     }
     const icons = { 'Alta': { dot: 'create', emoji: '➕' }, 'Baja': { dot: 'baja', emoji: '📤' }, 'Modificación': { dot: 'modify', emoji: '✏️' }, 'Eliminación': { dot: 'elim', emoji: '🗑️' } };
     listEl.innerHTML = matching.map(r => {
-      const [ts, usuario, accion, nombre, catalogo, lote, detalle, estadoAnterior] = r;
+      const [ts, usuario, accion, nombre, catalogo, lote, detalle, cambios] = r;
       const style = icons[accion] || { dot: 'history-dot-modify', emoji: '•' };
+      const cambiosHtml = (cambios || '').split(' | ').filter(Boolean)
+        .map(c => `<div>▸ ${htmlEsc(c)}</div>`).join('');
       return `<div class="history-item">
         <div class="history-dot ${style.dot}"></div>
         <div class="history-item-body">
           <div class="history-action">${style.emoji} ${htmlEsc(accion || '—')}</div>
           <div class="history-meta">${htmlEsc(ts || '')} · ${htmlEsc(usuario || '')}</div>
           ${detalle ? `<div class="history-detail">${htmlEsc(detalle)}</div>` : ''}
-          ${estadoAnterior ? `<div class="history-detail" style="color:var(--dim);font-size:11px;margin-top:3px">↩ Antes: ${htmlEsc(estadoAnterior)}</div>` : ''}
+          ${cambiosHtml ? `<div class="history-detail" style="color:var(--accent);font-size:11px;margin-top:3px">${cambiosHtml}</div>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -5597,19 +5624,26 @@ function renderAdminLog() {
   if (countEl) countEl.textContent = `${rows.length} registro${rows.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('admin-log-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--dim);padding:24px">Sin resultados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:24px">Sin resultados.</td></tr>';
     return;
   }
   const accionClass = a => a === 'Alta' ? 'log-alta' : a === 'Baja' ? 'log-baja' : a === 'Eliminación' ? 'log-elim' : 'log-mod';
-  tbody.innerHTML = rows.slice(0, 500).map(r => `<tr>
+  tbody.innerHTML = rows.slice(0, 500).map(r => {
+    const cambios = r[7] || '';
+    const cambiosHtml = cambios
+      ? cambios.split(' | ').map(c => `<div style="white-space:nowrap">${htmlEsc(c)}</div>`).join('')
+      : '';
+    return `<tr>
     <td style="white-space:nowrap;color:var(--dim)">${htmlEsc(r[0]||'')}</td>
     <td style="font-size:11px;color:var(--mid)">${htmlEsc(r[1]||'')}</td>
     <td><span class="${accionClass(r[2])}">${htmlEsc(r[2]||'')}</span></td>
     <td>${htmlEsc(r[3]||'')}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${htmlEsc(r[4]||'')}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${htmlEsc(r[5]||'')}</td>
-    <td style="font-size:11px;color:var(--dim);max-width:200px;overflow:hidden;text-overflow:ellipsis">${htmlEsc(r[6]||'')}</td>
-  </tr>`).join('');
+    <td style="font-size:11px;color:var(--dim)">${htmlEsc(r[6]||'')}</td>
+    <td style="font-size:11px;color:var(--accent)">${cambiosHtml}</td>
+  </tr>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════
