@@ -5619,20 +5619,25 @@ function runAuditoria() {
   setTimeout(() => {
     const issues = { err: [], warn: [] };
 
-    // 1. Lotes duplicados (mismo lote en múltiples filas disponibles)
+    // 1. Lotes duplicados
+    // - Lote sin letra: duplicado si coinciden lote + catálogo + nombre + fecha de llegada
+    // - Lote con letra (ej: "204935 A"): duplicado solo si hay otra fila con exactamente la misma letra,
+    //   mismo catálogo, nombre y fecha de llegada (no confundir 204935 A con 204935 B)
     const lotCount = {};
     for (const i of stock) {
       if (i._estado === 'baja') continue;
-      const k = i.lote.trim().toLowerCase();
-      if (!k) continue;
+      const loteClean = i.lote.trim();
+      if (!loteClean) continue;
+      const k = [loteClean.toLowerCase(), i.catalogo.trim().toLowerCase(), i.nombre.trim().toLowerCase(), (i.fecha||'').trim()].join('||');
       lotCount[k] = (lotCount[k] || []);
       lotCount[k].push(i);
     }
-    for (const [lot, items] of Object.entries(lotCount)) {
+    for (const [, items] of Object.entries(lotCount)) {
       if (items.length > 1) {
+        const hojas = [...new Set(items.map(i => i.sheetName))].join(', ');
         issues.warn.push({
-          icon: '🔁', title: `Lote duplicado: "${items[0].lote}"`,
-          desc: `${items.length} unidades disponibles con el mismo lote — ${items.map(i=>i.nombre).join(', ')}`
+          icon: '🔁', title: `Posible duplicado: "${items[0].lote}" — ${items[0].nombre}`,
+          desc: `${items.length} filas idénticas (mismo lote, catálogo, nombre y fecha de llegada). Hoja${hojas.includes(',') ? 's' : ''}: ${hojas}. Verificar si es un error de carga.`
         });
       }
     }
