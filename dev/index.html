@@ -3336,13 +3336,16 @@ async function guardarModificacion() {
   const _itemAntes = Object.assign({}, item); // clone before applying changes
   // NOW close modal
   cerrarModal();
-  Object.assign(item, updates);
-  const estadoAnteriorMod = diffSnapshot(_itemAntes, item); // only changed fields
 
   toast('Guardando…', 'info');
   try {
-    // Verify row integrity before overwriting
-    await verifyRowIntegrity(item);
+    // Verify row integrity using the ORIGINAL item (before applying changes)
+    // so the comparison matches what Sheets actually has right now
+    await verifyRowIntegrity(_itemAntes);
+
+    // Only apply changes AFTER integrity check passes
+    Object.assign(item, updates);
+    const estadoAnteriorMod = diffSnapshot(_itemAntes, item); // only changed fields
     const sheetRow = item.rowIndex;
     // 2022/2023: sin checkbox → datos desde col A. 2024+: datos desde col B
     const writeRange = `${item.sheetName}!B${sheetRow}:K${sheetRow}`;
