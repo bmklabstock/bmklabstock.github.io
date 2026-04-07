@@ -5619,28 +5619,27 @@ function runAuditoria() {
   setTimeout(() => {
     const issues = { err: [], warn: [] };
 
-    // 1. Lotes duplicados (mismo lote + mismo catálogo + mismo nombre en múltiples filas disponibles)
-    // Nota: es normal tener el mismo número de lote en varias filas (distintas unidades del mismo lote).
-    // Solo se considera duplicado real si coinciden lote, catálogo Y nombre exactamente (probable error de carga).
+    // 1. Lotes duplicados
+    // - Lote sin letra: duplicado si coinciden lote + catálogo + nombre + fecha de llegada
+    // - Lote con letra (ej: "204935 A"): duplicado solo si hay otra fila con exactamente la misma letra,
+    //   mismo catálogo, nombre y fecha de llegada (no confundir 204935 A con 204935 B)
     const lotCount = {};
     for (const i of stock) {
       if (i._estado === 'baja') continue;
-      const k = [i.lote.trim().toLowerCase(), i.catalogo.trim().toLowerCase(), i.nombre.trim().toLowerCase()].join('||');
-      if (!i.lote.trim()) continue;
+      const loteClean = i.lote.trim();
+      if (!loteClean) continue;
+      // Clave siempre incluye el lote completo (con letra si la tiene), catálogo, nombre y fecha
+      // Así "204935 A" y "204935 B" tienen claves distintas y no se confunden entre sí
+      const k = [loteClean.toLowerCase(), i.catalogo.trim().toLowerCase(), i.nombre.trim().toLowerCase(), (i.fechaLlegada||'').trim()].join('||');
       lotCount[k] = (lotCount[k] || []);
       lotCount[k].push(i);
     }
     for (const [, items] of Object.entries(lotCount)) {
       if (items.length > 1) {
-        // Verificar que tengan la misma fecha de llegada (si difieren, son unidades legítimas)
-        const fechas = new Set(items.map(i => (i.fechaLlegada || '').trim()));
-        if (fechas.size === 1) {
-          // Misma fecha de llegada, mismo lote, mismo catálogo y mismo nombre → probable duplicado real
-          issues.warn.push({
-            icon: '🔁', title: `Posible duplicado: "${items[0].lote}" — ${items[0].nombre}`,
-            desc: `${items.length} filas idénticas (mismo lote, catálogo, nombre y fecha de llegada). Verificar si es un error de carga.`
-          });
-        }
+        issues.warn.push({
+          icon: '🔁', title: `Posible duplicado: "${items[0].lote}" — ${items[0].nombre}`,
+          desc: `${items.length} filas idénticas (mismo lote, catálogo, nombre y fecha de llegada). Verificar si es un error de carga.`
+        });
       }
     }
 
