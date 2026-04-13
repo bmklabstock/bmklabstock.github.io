@@ -1039,28 +1039,52 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 
   <!-- SEARCH ROW -->
   <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap">
-    <!-- Buscador -->
-    <div style="flex:0 0 280px;position:relative">
+
+    <!-- Buscador con X -->
+    <div style="flex:1;min-width:220px;position:relative">
       <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:15px;pointer-events:none">⌕</span>
       <input type="text" id="met-search" placeholder="Nombre o N° catálogo…"
-        style="width:100%;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);outline:none"
-        oninput="metricasAC()" onblur="setTimeout(()=>{const l=document.getElementById('met-ac-list');if(l)l.style.display='none'},150)" autocomplete="off">
+        style="width:100%;padding:10px 34px 10px 38px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);outline:none"
+        oninput="metricasAC();metricasToggleX()" onblur="setTimeout(()=>{const l=document.getElementById('met-ac-list');if(l)l.style.display='none'},150)" autocomplete="off">
+      <button id="met-search-x" onclick="metricasClearSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--dim);font-size:16px;line-height:1;padding:2px 4px">✕</button>
       <div id="met-ac-list" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:200;display:none;max-height:200px;overflow-y:auto"></div>
     </div>
-    <!-- Período de consumo -->
-    <div style="display:flex;gap:6px;align-items:center">
-      <span style="font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">Período:</span>
-      <input type="date" id="met-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
-      <span style="color:var(--dim);font-size:12px">→</span>
-      <input type="date" id="met-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+
+    <!-- Filtrar por: dropdown + inputs dinámicos -->
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">Filtrar por:</span>
+      <select id="met-filtro-tipo" onchange="metricasFiltroChange()"
+        style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none;cursor:pointer">
+        <option value="periodo">Período de consumo</option>
+        <option value="llegada">Fecha de llegada</option>
+        <option value="lote">N° de lote</option>
+      </select>
+
+      <!-- Panel: Período -->
+      <div id="met-filtro-periodo" style="display:flex;gap:6px;align-items:center">
+        <input type="date" id="met-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+        <span style="color:var(--dim);font-size:12px">→</span>
+        <input type="date" id="met-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+      </div>
+
+      <!-- Panel: Fecha llegada -->
+      <div id="met-filtro-llegada" style="display:none;gap:6px;align-items:center">
+        <input type="date" id="met-llegada-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+        <span style="color:var(--dim);font-size:12px">→</span>
+        <input type="date" id="met-llegada-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+      </div>
+
+      <!-- Panel: Lote -->
+      <div id="met-filtro-lote" style="display:none;gap:6px;align-items:center">
+        <div style="position:relative">
+          <input type="text" id="met-lote-val" placeholder="Ej: 204935"
+            style="padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Mono',monospace;outline:none;width:180px"
+            oninput="metricasLoteAC()" onblur="setTimeout(()=>{const l=document.getElementById('met-lote-ac-list');if(l)l.style.display='none'},150)" autocomplete="off">
+          <div id="met-lote-ac-list" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:200;display:none;max-height:200px;overflow-y:auto;min-width:220px"></div>
+        </div>
+      </div>
     </div>
-    <!-- Fecha de llegada -->
-    <div style="display:flex;gap:6px;align-items:center">
-      <span style="font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">F. llegada:</span>
-      <input type="date" id="met-llegada-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
-      <span style="color:var(--dim);font-size:12px">→</span>
-      <input type="date" id="met-llegada-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
-    </div>
+
     <button onclick="calcularMetricas()" style="padding:9px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;white-space:nowrap">Analizar</button>
   </div>
 
@@ -1084,7 +1108,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
     </div>
 
     <!-- KPIs -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;align-items:stretch" id="met-kpis"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;align-items:stretch;grid-auto-rows:1fr" id="met-kpis"></div>
 
     <!-- Two col -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -5856,17 +5880,49 @@ function isHolidayAR(dateStr) {
 
 function countWorkingDays(startTs, endTs) {
   if (!startTs || !endTs || endTs <= startTs) return 0;
+  // Parse as local date to avoid UTC timezone offset issues (new Date('YYYY-MM-DD') = UTC midnight)
+  // We use the ISO string from the timestamp but force local interpretation
+  const toLocalDate = ts => {
+    const d = new Date(ts);
+    // Reconstruct date using local year/month/day to avoid timezone shift
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  };
+  const start = toLocalDate(startTs);
+  const end   = toLocalDate(endTs);
   let count = 0;
-  const d = new Date(startTs);
-  d.setHours(0,0,0,0);
-  const end = new Date(endTs);
-  end.setHours(0,0,0,0);
+  const d = new Date(start);
+  // fmtIsoLocal: format as YYYY-MM-DD using local date parts (avoids UTC shift)
+  const fmtLocal = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
   while (d < end) {
     const day = d.getDay(); // 0=Sun, 6=Sat
-    if (day !== 0 && day !== 6 && !isHolidayAR(fmtIso(d))) count++;
+    if (day !== 0 && day !== 6 && !isHolidayAR(fmtLocal(d))) count++;
     d.setDate(d.getDate() + 1);
   }
   return count;
+}
+
+function metricasFiltroChange() {
+  const tipo = document.getElementById('met-filtro-tipo')?.value;
+  const panels = { periodo: 'met-filtro-periodo', llegada: 'met-filtro-llegada', lote: 'met-filtro-lote' };
+  Object.entries(panels).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = k === tipo ? 'flex' : 'none';
+  });
+}
+
+function metricasToggleX() {
+  const val = document.getElementById('met-search')?.value || '';
+  const x = document.getElementById('met-search-x');
+  if (x) x.style.display = val.length ? '' : 'none';
+}
+
+function metricasClearSearch() {
+  const input = document.getElementById('met-search');
+  if (input) { input.value = ''; input.focus(); }
+  const x = document.getElementById('met-search-x');
+  if (x) x.style.display = 'none';
+  const list = document.getElementById('met-ac-list');
+  if (list) list.style.display = 'none';
 }
 
 function initMetricas() {
@@ -5914,6 +5970,39 @@ function metricasAC() {
   list.style.display = 'block';
 }
 
+function metricasLoteAC() {
+  const q = (document.getElementById('met-lote-val')?.value || '').trim().toLowerCase();
+  const list = document.getElementById('met-lote-ac-list');
+  if (!list) return;
+  if (q.length < 2) { list.style.display = 'none'; return; }
+  // Get search term from main buscador to filter lotes of matching items only
+  const searchQ = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
+  const lotes = new Set();
+  for (const i of stock) {
+    if (searchQ && !i._nombre.includes(searchQ) && !i._cat.includes(searchQ)) continue;
+    if (i._lot.includes(q)) lotes.add(i.lote.trim());
+  }
+  const results = [...lotes].slice(0, 10);
+  if (!results.length) { list.style.display = 'none'; return; }
+  list.innerHTML = results.map(lote =>
+    `<div class="met-lote-ac-item" data-lote="${htmlEsc(lote)}"
+      style="padding:8px 14px;cursor:pointer;font-size:12px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border2)">
+      ${htmlEsc(lote)}
+    </div>`
+  ).join('');
+  list.querySelectorAll('.met-lote-ac-item').forEach(el => {
+    el.addEventListener('mouseenter', () => el.style.background = 'var(--surface2)');
+    el.addEventListener('mouseleave', () => el.style.background = '');
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const input = document.getElementById('met-lote-val');
+      if (input) input.value = el.dataset.lote;
+      list.style.display = 'none';
+    });
+  });
+  list.style.display = 'block';
+}
+
 function metricasACSelect(nombre, catalogo) {
   const input = document.getElementById('met-search');
   if (input) { input.value = nombre; input.blur(); }
@@ -5923,35 +6012,50 @@ function metricasACSelect(nombre, catalogo) {
 
 function calcularMetricas() {
   const q = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
-  const desdeStr = document.getElementById('met-desde')?.value || '';
-  const hastaStr = document.getElementById('met-hasta')?.value || '';
-  const llegadaDesdeStr = document.getElementById('met-llegada-desde')?.value || '';
-  const llegadaHastaStr = document.getElementById('met-llegada-hasta')?.value || '';
+  const filtroTipo = document.getElementById('met-filtro-tipo')?.value || 'periodo';
 
   if (!q) { toast('Ingresá un nombre o catálogo para buscar', 'error'); return; }
 
-  const desdeTs = desdeStr ? new Date(desdeStr).getTime() : 0;
-  const hastaTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
-  const llegadaDesdeTs = llegadaDesdeStr ? new Date(llegadaDesdeStr).getTime() : 0;
-  const llegadaHastaTs = llegadaHastaStr ? new Date(llegadaHastaStr + 'T23:59:59').getTime() : Infinity;
-
-  // Find matching items (by nombre or catalogo)
+  // Find all matching items by nombre or catalogo
   const matching = stock.filter(i => i._nombre.includes(q) || i._cat.includes(q));
   if (!matching.length) { toast('No se encontraron insumos con ese criterio', 'error'); return; }
 
-  // Apply llegada date filter if set
-  const matchingFiltered = (llegadaDesdeTs || llegadaHastaTs < Infinity)
-    ? matching.filter(i => i._fechaTs >= llegadaDesdeTs && i._fechaTs <= llegadaHastaTs)
-    : matching;
-  const matchingForCalc = matchingFiltered.length ? matchingFiltered : matching;
+  // ── Apply the active filter ──────────────────────────────────
+  let enPeriodo;
+  // These are only used for velocity calculation when filtroTipo === 'periodo'
+  let desdeTs = 0, hastaTs = Date.now();
 
-  // Filter by period: include if finConsumo OR inicioConsumo falls within range, OR if in stock/in-use
-  const enPeriodo = matchingForCalc.filter(i => {
-    if (i._finTs)   return i._finTs   >= desdeTs && i._finTs   <= hastaTs;
-    if (i._inicioTs) return i._inicioTs >= desdeTs && i._inicioTs <= hastaTs;
-    // In stock (no uso): include if fechaTs within range
-    return i._fechaTs >= desdeTs && i._fechaTs <= hastaTs;
-  });
+  if (filtroTipo === 'periodo') {
+    const desdeStr = document.getElementById('met-desde')?.value || '';
+    const hastaStr = document.getElementById('met-hasta')?.value || '';
+    desdeTs = desdeStr ? new Date(desdeStr).getTime() : 0;
+    hastaTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
+    enPeriodo = matching.filter(i => {
+      if (i._finTs)    return i._finTs    >= desdeTs && i._finTs    <= hastaTs;
+      if (i._inicioTs) return i._inicioTs >= desdeTs && i._inicioTs <= hastaTs;
+      return i._fechaTs >= desdeTs && i._fechaTs <= hastaTs;
+    });
+  } else if (filtroTipo === 'llegada') {
+    const desdeStr = document.getElementById('met-llegada-desde')?.value || '';
+    const hastaStr = document.getElementById('met-llegada-hasta')?.value || '';
+    if (!desdeStr && !hastaStr) { toast('Ingresá al menos una fecha de llegada para filtrar', 'error'); return; }
+    const dTs = desdeStr ? new Date(desdeStr).getTime() : 0;
+    const hTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
+    enPeriodo = matching.filter(i => i._fechaTs >= dTs && i._fechaTs <= hTs);
+    // For velocity calculation, use the span of finConsumo dates
+    const consumidosAll = enPeriodo.filter(i => i._finTs);
+    if (consumidosAll.length) {
+      desdeTs = Math.min(...consumidosAll.map(i => i._finTs));
+      hastaTs = Math.max(...consumidosAll.map(i => i._finTs));
+    }
+  } else if (filtroTipo === 'lote') {
+    const loteVal = (document.getElementById('met-lote-val')?.value || '').trim().toLowerCase();
+    if (!loteVal) { toast('Ingresá un número de lote para buscar', 'error'); return; }
+    enPeriodo = matching.filter(i => i._lot.includes(loteVal));
+    desdeTs = 0; hastaTs = Date.now();
+  } else {
+    enPeriodo = matching;
+  }
 
   _metCurrentItems = enPeriodo;
 
@@ -5977,7 +6081,11 @@ function calcularMetricas() {
   }
 
   // Velocity: consumidos / months in period
-  const mesesEnPeriodo = Math.max(1, Math.round((hastaTs - desdeTs) / (30.44 * 86400000)));
+  const mesesEnPeriodo = (filtroTipo === 'periodo' && desdeTs && hastaTs > desdeTs)
+    ? Math.max(1, Math.round((hastaTs - desdeTs) / (30.44 * 86400000)))
+    : (consumidos.length > 1
+        ? Math.max(1, Math.round((Math.max(...consumidos.map(i=>i._finTs||0)) - Math.min(...consumidos.map(i=>i._finTs||i._inicioTs||0))) / (30.44 * 86400000)))
+        : 1);
   const velocidad = consumidos.length / mesesEnPeriodo;
 
   // Projection
@@ -6006,7 +6114,7 @@ function calcularMetricas() {
     nombre, catalogo, stockActual, consumidos, enUso, enPeriodo: enPeriodo.length,
     totalHistorial: matching.length, durProm, meses, velocidad, mesesEnPeriodo,
     fechaAgotamiento, tasaUso,
-    desdeStr, hastaStr, llegadaDesdeStr, llegadaHastaStr, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
+    desdeStr: document.getElementById('met-desde')?.value||'', hastaStr: document.getElementById('met-hasta')?.value||'', filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
     rendTotal2: enPeriodo.length, totalHistorial
   });
 }
@@ -6034,25 +6142,25 @@ function renderMetricas(d) {
     ? (d.diasHastaAgotamiento < 60 ? 'var(--red)' : d.diasHastaAgotamiento < 120 ? 'var(--amber)' : 'var(--green)')
     : 'var(--dim)';
   document.getElementById('met-kpis').innerHTML = `
-    <div class="card" style="border-top:2px solid var(--teal,#00c9a7);position:relative;display:flex;flex-direction:column">
+    <div class="card" style="border-top:2px solid var(--teal,#00c9a7)">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--teal,#00c9a7);line-height:1">${d.consumidos.length}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px">en el período seleccionado</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">en el período seleccionado</div>
     </div>
     <div class="card" style="border-top:2px solid var(--accent)">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Velocidad de consumo</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--accent);line-height:1">${vel}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px">unidades / mes (promedio)</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">unidades / mes (promedio)</div>
     </div>
     <div class="card" style="border-top:2px solid var(--amber)">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Duración promedio</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--amber);line-height:1">${d.durProm ?? '—'}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px">${d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes'}</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes'}</div>
     </div>
     <div class="card" style="border-top:2px solid ${agotColor}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Stock estimado hasta</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:${agotColor};line-height:1">${agot}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px">${d.stockActual} unidades × ~${d.durProm ?? '?'} días c/u</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.stockActual} unidades × ~${d.durProm ?? '?'} días c/u</div>
     </div>`;
 
   // Monthly chart
