@@ -6125,8 +6125,16 @@ function calcularMetricas() {
     filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
     rendTotal2: enPeriodo.length, totalHistorial,
     matchingItems: matching,
-    desdeStr: document.getElementById('met-desde')?.value || document.getElementById('met-llegada-desde')?.value || '',
-    hastaStr: document.getElementById('met-hasta')?.value || document.getElementById('met-llegada-hasta')?.value || ''
+    desdeStr: filtroTipo === 'llegada'
+      ? (document.getElementById('met-llegada-desde')?.value || '')
+      : filtroTipo === 'lote'
+        ? (document.getElementById('met-lote-val')?.value || '')
+        : (document.getElementById('met-desde')?.value || ''),
+    hastaStr: filtroTipo === 'llegada'
+      ? (document.getElementById('met-llegada-hasta')?.value || '')
+      : filtroTipo === 'lote'
+        ? ''
+        : (document.getElementById('met-hasta')?.value || '')
   });
 }
 
