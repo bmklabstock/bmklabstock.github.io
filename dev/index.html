@@ -1451,7 +1451,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -5938,8 +5938,7 @@ function initMetricas() {
 }
 
 function metricasAC() {
-  // If user is typing manually, clear the stored catalogo selection
-  window._metSelectedCatalogo = null;
+  window._metSelectedCatalogo = null; // reset on manual typing
   const q = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
   const list = document.getElementById('met-ac-list');
   if (!list) return;
@@ -6009,8 +6008,7 @@ function metricasLoteAC() {
 function metricasACSelect(nombre, catalogo) {
   const input = document.getElementById('met-search');
   if (input) { input.value = nombre; input.blur(); }
-  // Store catalogo for exact filtering (avoids matching by misspelled nombre)
-  window._metSelectedCatalogo = catalogo;
+  window._metSelectedCatalogo = catalogo; // store for exact filtering
   const list = document.getElementById('met-ac-list');
   if (list) list.style.display = 'none';
 }
@@ -6021,7 +6019,7 @@ function calcularMetricas() {
 
   if (!q) { toast('Ingresá un nombre o catálogo para buscar', 'error'); return; }
 
-  // Find all matching items — use exact catalogo if selected from autocomplete, else search by nombre+catalogo
+  // Find all matching items — use exact catalogo if selected from AC, else free search
   const _selCat = (window._metSelectedCatalogo || '').toLowerCase().trim();
   const matching = _selCat
     ? stock.filter(i => i._cat === _selCat)
@@ -6126,7 +6124,9 @@ function calcularMetricas() {
     fechaAgotamiento, tasaUso, velocidad: 0,
     filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
     rendTotal2: enPeriodo.length, totalHistorial,
-    matchingItems: matching
+    matchingItems: matching,
+    desdeStr: document.getElementById('met-desde')?.value || document.getElementById('met-llegada-desde')?.value || '',
+    hastaStr: document.getElementById('met-hasta')?.value || document.getElementById('met-llegada-hasta')?.value || ''
   });
 }
 
@@ -6147,7 +6147,14 @@ function calcVelocidad(meses) {
     const d2 = new Date(i._finTs);
     return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}` !== currentKey;
   });
-  return completos.length / meses;
+  if (completos.length > 0) return completos.length / meses;
+  // Fallback: use all historical consumos to estimate velocity
+  const allConsumed = (window._metMatchingItems || []).filter(i => i._estado === 'baja' && i._finTs);
+  if (!allConsumed.length) return 0;
+  const minTs = Math.min(...allConsumed.map(i => i._finTs));
+  const maxTs = Math.max(...allConsumed.map(i => i._finTs));
+  const spanMeses = Math.max(1, (maxTs - minTs) / (30.44 * 86400000));
+  return allConsumed.length / spanMeses;
 }
 
 function renderProyeccion(mesesBtn) {
@@ -6190,35 +6197,34 @@ function renderMetricas(d) {
   document.getElementById('met-res-period').textContent =
     `${d.desdeStr || '—'}  →  ${d.hastaStr || 'hoy'}`;
 
-  // KPIs — use 6m velocity for display
+  // KPIs — equal height + real agotamiento date
   const vel = calcVelocidad(6).toFixed(1);
-  // Calculate agotamiento directly for KPI card
   const vel6kpi = calcVelocidad(6);
   const hoyKpi = new Date();
   const diasAgoKpi = d.stockActual > 0 && vel6kpi > 0 ? Math.round((d.stockActual / vel6kpi) * 30.44) : null;
   const fechaAgoKpi = diasAgoKpi ? new Date(Date.now() + diasAgoKpi * 86400000) : null;
-  const agot = fechaAgoKpi ? fmtFechaMetricas(fechaAgoKpi) : (d.stockActual > 0 ? 'Sin consumos' : '—');
+  const agot = fechaAgoKpi ? fmtFechaMetricas(fechaAgoKpi) : '—';
   const agotColor = fechaAgoKpi
     ? ((fechaAgoKpi - hoyKpi) < 60*86400000 ? 'var(--red)' : (fechaAgoKpi - hoyKpi) < 120*86400000 ? 'var(--amber)' : 'var(--accent)')
     : 'var(--dim)';
-  const kpiStyle = 'display:flex;flex-direction:column;min-height:110px';
+  const kpiS = 'display:flex;flex-direction:column;min-height:110px';
   document.getElementById('met-kpis').innerHTML = `
-    <div class="card" style="border-top:2px solid var(--teal,#00c9a7);${kpiStyle}">
+    <div class="card" style="border-top:2px solid var(--teal,#00c9a7);${kpiS}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--teal,#00c9a7);line-height:1">${d.consumidos.length}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">en el período seleccionado</div>
     </div>
-    <div class="card" style="border-top:2px solid var(--accent);${kpiStyle}">
+    <div class="card" style="border-top:2px solid var(--accent);${kpiS}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Velocidad de consumo</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--accent);line-height:1">${vel}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">unidades / mes (promedio)</div>
     </div>
-    <div class="card" style="border-top:2px solid var(--amber);${kpiStyle}">
+    <div class="card" style="border-top:2px solid var(--amber);${kpiS}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Duración promedio</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--amber);line-height:1">${d.durProm ?? '—'}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes'}</div>
     </div>
-    <div class="card" style="border-top:2px solid ${agotColor};${kpiStyle}">
+    <div class="card" style="border-top:2px solid ${agotColor};${kpiS}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Stock estimado hasta</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:${agotColor};line-height:1.1">${agot}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.stockActual} unidades · vel. ${vel} u/mes</div>
