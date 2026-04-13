@@ -6061,8 +6061,8 @@ function calcularMetricas() {
 
   const nombre = matching[0].nombre;
   const catalogo = matching[0].catalogo;
-  const stockActual = matchingForCalc.filter(i => i._estado !== 'baja').length;
-  const totalHistorial = matchingForCalc.length;
+  const stockActual = matching.filter(i => i._estado !== 'baja').length;
+  const totalHistorial = matching.length;
   const consumidos = enPeriodo.filter(i => i._estado === 'baja');
   const enUso = enPeriodo.filter(i => i.inicioConsumo && !i.finConsumo);
 
