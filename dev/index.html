@@ -1451,7 +1451,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -6140,19 +6140,21 @@ function calcVelocidad(meses) {
   const desde = new Date(hoyV.getFullYear(), hoyV.getMonth() - meses, 1);
   const desdeTs = desde.getTime();
   const currentKey = `${hoyV.getFullYear()}-${String(hoyV.getMonth()+1).padStart(2,'0')}`;
+  // Use _finTs for consumed, _inicioTs for in-use items
+  const tsOf = i => i._finTs || i._inicioTs || 0;
   const consumidosN = (window._metMatchingItems || []).filter(i =>
-    i._estado === 'baja' && i._finTs >= desdeTs && i._finTs <= hoyV.getTime()
+    (i._estado === 'baja' || i.inicioConsumo) && tsOf(i) >= desdeTs && tsOf(i) <= hoyV.getTime()
   );
   const completos = consumidosN.filter(i => {
-    const d2 = new Date(i._finTs);
+    const d2 = new Date(tsOf(i));
     return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}` !== currentKey;
   });
   if (completos.length > 0) return completos.length / meses;
-  // Fallback: use all historical consumos to estimate velocity
-  const allConsumed = (window._metMatchingItems || []).filter(i => i._estado === 'baja' && i._finTs);
+  // Fallback: use full history
+  const allConsumed = (window._metMatchingItems || []).filter(i => tsOf(i) > 0);
   if (!allConsumed.length) return 0;
-  const minTs = Math.min(...allConsumed.map(i => i._finTs));
-  const maxTs = Math.max(...allConsumed.map(i => i._finTs));
+  const minTs = Math.min(...allConsumed.map(i => tsOf(i)));
+  const maxTs = Math.max(...allConsumed.map(i => tsOf(i)));
   const spanMeses = Math.max(1, (maxTs - minTs) / (30.44 * 86400000));
   return allConsumed.length / spanMeses;
 }
@@ -6197,7 +6199,7 @@ function renderMetricas(d) {
   document.getElementById('met-res-period').textContent =
     `${d.desdeStr || '—'}  →  ${d.hastaStr || 'hoy'}`;
 
-  // KPIs — equal height + real agotamiento date
+  // KPIs — fixed uniform cards
   const vel = calcVelocidad(6).toFixed(1);
   const vel6kpi = calcVelocidad(6);
   const hoyKpi = new Date();
@@ -6207,28 +6209,17 @@ function renderMetricas(d) {
   const agotColor = fechaAgoKpi
     ? ((fechaAgoKpi - hoyKpi) < 60*86400000 ? 'var(--red)' : (fechaAgoKpi - hoyKpi) < 120*86400000 ? 'var(--amber)' : 'var(--accent)')
     : 'var(--dim)';
-  const kpiS = 'display:flex;flex-direction:column;height:100%;box-sizing:border-box';
-  document.getElementById('met-kpis').innerHTML = `
-    <div class="card" style="border-top:2px solid var(--teal,#00c9a7);${kpiS}">
-      <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--teal,#00c9a7);line-height:1">${d.consumidos.length}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">en el período seleccionado</div>
-    </div>
-    <div class="card" style="border-top:2px solid var(--accent);${kpiS}">
-      <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Velocidad de consumo</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--accent);line-height:1">${vel}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">unidades / mes (promedio)</div>
-    </div>
-    <div class="card" style="border-top:2px solid var(--amber);${kpiS}">
-      <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Duración promedio</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--amber);line-height:1">${d.durProm ?? '—'}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes'}</div>
-    </div>
-    <div class="card" style="border-top:2px solid ${agotColor};${kpiS}">
-      <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Stock estimado hasta</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:${agotColor};line-height:1.1">${agot}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.stockActual} unidades · vel. ${vel} u/mes</div>
+  const kpiCard = (borderColor, label, value, valueFontSize, valueColor, sub) =>
+    `<div style="background:var(--surface);border:1px solid var(--border);border-top:2px solid ${borderColor};border-radius:10px;padding:20px 20px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;height:120px;box-sizing:border-box">
+      <div style="font-size:10px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:${valueFontSize};font-weight:600;color:${valueColor};line-height:1;flex:1;display:flex;align-items:center">${value}</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div>
     </div>`;
+  document.getElementById('met-kpis').innerHTML =
+    kpiCard('var(--teal,#00c9a7)', 'Unidades consumidas', d.consumidos.length, '32px', 'var(--teal,#00c9a7)', 'en el período seleccionado') +
+    kpiCard('var(--accent)',        'Velocidad de consumo', vel,               '32px', 'var(--accent)',        'unidades / mes (promedio)') +
+    kpiCard('var(--amber)',         'Duración promedio',    d.durProm ?? '—',  '32px', 'var(--amber)',         d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes') +
+    kpiCard(agotColor,              'Stock estimado hasta', agot,              '24px', agotColor,              `${d.stockActual} unidades · vel. ${vel} u/mes`);
 
   // Monthly chart
   const allKeys = Object.keys(d.meses).sort();
