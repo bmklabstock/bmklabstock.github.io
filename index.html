@@ -1076,8 +1076,12 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 
       <!-- Panel: Lote -->
       <div id="met-filtro-lote" style="display:none;gap:6px;align-items:center">
-        <input type="text" id="met-lote-val" placeholder="Ej: 204935"
-          style="padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Mono',monospace;outline:none;width:140px">
+        <div style="position:relative">
+          <input type="text" id="met-lote-val" placeholder="Ej: 204935"
+            style="padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Mono',monospace;outline:none;width:180px"
+            oninput="metricasLoteAC()" onblur="setTimeout(()=>{const l=document.getElementById('met-lote-ac-list');if(l)l.style.display='none'},150)" autocomplete="off">
+          <div id="met-lote-ac-list" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:200;display:none;max-height:200px;overflow-y:auto;min-width:220px"></div>
+        </div>
       </div>
     </div>
 
@@ -5966,6 +5970,39 @@ function metricasAC() {
   list.style.display = 'block';
 }
 
+function metricasLoteAC() {
+  const q = (document.getElementById('met-lote-val')?.value || '').trim().toLowerCase();
+  const list = document.getElementById('met-lote-ac-list');
+  if (!list) return;
+  if (q.length < 2) { list.style.display = 'none'; return; }
+  // Get search term from main buscador to filter lotes of matching items only
+  const searchQ = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
+  const lotes = new Set();
+  for (const i of stock) {
+    if (searchQ && !i._nombre.includes(searchQ) && !i._cat.includes(searchQ)) continue;
+    if (i._lot.includes(q)) lotes.add(i.lote.trim());
+  }
+  const results = [...lotes].slice(0, 10);
+  if (!results.length) { list.style.display = 'none'; return; }
+  list.innerHTML = results.map(lote =>
+    `<div class="met-lote-ac-item" data-lote="${htmlEsc(lote)}"
+      style="padding:8px 14px;cursor:pointer;font-size:12px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border2)">
+      ${htmlEsc(lote)}
+    </div>`
+  ).join('');
+  list.querySelectorAll('.met-lote-ac-item').forEach(el => {
+    el.addEventListener('mouseenter', () => el.style.background = 'var(--surface2)');
+    el.addEventListener('mouseleave', () => el.style.background = '');
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const input = document.getElementById('met-lote-val');
+      if (input) input.value = el.dataset.lote;
+      list.style.display = 'none';
+    });
+  });
+  list.style.display = 'block';
+}
+
 function metricasACSelect(nombre, catalogo) {
   const input = document.getElementById('met-search');
   if (input) { input.value = nombre; input.blur(); }
@@ -5975,47 +6012,57 @@ function metricasACSelect(nombre, catalogo) {
 
 function calcularMetricas() {
   const q = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
-  const desdeStr = document.getElementById('met-desde')?.value || '';
-  const hastaStr = document.getElementById('met-hasta')?.value || '';
-  const llegadaDesdeStr = document.getElementById('met-llegada-desde')?.value || '';
-  const llegadaHastaStr = document.getElementById('met-llegada-hasta')?.value || '';
   const filtroTipo = document.getElementById('met-filtro-tipo')?.value || 'periodo';
-  const loteVal = (document.getElementById('met-lote-val')?.value || '').trim().toLowerCase();
 
   if (!q) { toast('Ingresá un nombre o catálogo para buscar', 'error'); return; }
 
-  const desdeTs = desdeStr ? new Date(desdeStr).getTime() : 0;
-  const hastaTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
-  const llegadaDesdeTs = llegadaDesdeStr ? new Date(llegadaDesdeStr).getTime() : 0;
-  const llegadaHastaTs = llegadaHastaStr ? new Date(llegadaHastaStr + 'T23:59:59').getTime() : Infinity;
-
-  // Find matching items (by nombre or catalogo)
+  // Find all matching items by nombre or catalogo
   const matching = stock.filter(i => i._nombre.includes(q) || i._cat.includes(q));
   if (!matching.length) { toast('No se encontraron insumos con ese criterio', 'error'); return; }
 
-  // Apply filter based on selected type
-  let matchingForCalc = matching;
-  if (filtroTipo === 'llegada' && (llegadaDesdeTs || llegadaHastaTs < Infinity)) {
-    const f = matching.filter(i => i._fechaTs >= llegadaDesdeTs && i._fechaTs <= llegadaHastaTs);
-    if (f.length) matchingForCalc = f;
-  } else if (filtroTipo === 'lote' && loteVal) {
-    const f = matching.filter(i => i._lot.includes(loteVal));
-    if (f.length) matchingForCalc = f;
-  }
+  // ── Apply the active filter ──────────────────────────────────
+  let enPeriodo;
+  // These are only used for velocity calculation when filtroTipo === 'periodo'
+  let desdeTs = 0, hastaTs = Date.now();
 
-  // Filter by period: include if finConsumo OR inicioConsumo falls within range, OR if in stock/in-use
-  const enPeriodo = filtroTipo === 'periodo' ? matchingForCalc.filter(i => {
-    if (i._finTs)    return i._finTs    >= desdeTs && i._finTs    <= hastaTs;
-    if (i._inicioTs) return i._inicioTs >= desdeTs && i._inicioTs <= hastaTs;
-    return i._fechaTs >= desdeTs && i._fechaTs <= hastaTs;
-  }) : matchingForCalc;
+  if (filtroTipo === 'periodo') {
+    const desdeStr = document.getElementById('met-desde')?.value || '';
+    const hastaStr = document.getElementById('met-hasta')?.value || '';
+    desdeTs = desdeStr ? new Date(desdeStr).getTime() : 0;
+    hastaTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
+    enPeriodo = matching.filter(i => {
+      if (i._finTs)    return i._finTs    >= desdeTs && i._finTs    <= hastaTs;
+      if (i._inicioTs) return i._inicioTs >= desdeTs && i._inicioTs <= hastaTs;
+      return i._fechaTs >= desdeTs && i._fechaTs <= hastaTs;
+    });
+  } else if (filtroTipo === 'llegada') {
+    const desdeStr = document.getElementById('met-llegada-desde')?.value || '';
+    const hastaStr = document.getElementById('met-llegada-hasta')?.value || '';
+    if (!desdeStr && !hastaStr) { toast('Ingresá al menos una fecha de llegada para filtrar', 'error'); return; }
+    const dTs = desdeStr ? new Date(desdeStr).getTime() : 0;
+    const hTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
+    enPeriodo = matching.filter(i => i._fechaTs >= dTs && i._fechaTs <= hTs);
+    // For velocity calculation, use the span of finConsumo dates
+    const consumidosAll = enPeriodo.filter(i => i._finTs);
+    if (consumidosAll.length) {
+      desdeTs = Math.min(...consumidosAll.map(i => i._finTs));
+      hastaTs = Math.max(...consumidosAll.map(i => i._finTs));
+    }
+  } else if (filtroTipo === 'lote') {
+    const loteVal = (document.getElementById('met-lote-val')?.value || '').trim().toLowerCase();
+    if (!loteVal) { toast('Ingresá un número de lote para buscar', 'error'); return; }
+    enPeriodo = matching.filter(i => i._lot.includes(loteVal));
+    desdeTs = 0; hastaTs = Date.now();
+  } else {
+    enPeriodo = matching;
+  }
 
   _metCurrentItems = enPeriodo;
 
   const nombre = matching[0].nombre;
   const catalogo = matching[0].catalogo;
-  const stockActual = matchingForCalc.filter(i => i._estado !== 'baja').length;
-  const totalHistorial = matchingForCalc.length;
+  const stockActual = matching.filter(i => i._estado !== 'baja').length;
+  const totalHistorial = matching.length;
   const consumidos = enPeriodo.filter(i => i._estado === 'baja');
   const enUso = enPeriodo.filter(i => i.inicioConsumo && !i.finConsumo);
 
@@ -6024,7 +6071,7 @@ function calcularMetricas() {
   const duraciones = dursWithData.map(i => countWorkingDays(i._inicioTs, i._finTs));
   const durProm = duraciones.length ? Math.round(duraciones.reduce((a,b)=>a+b,0)/duraciones.length) : null;
 
-  // Monthly consumption
+  // Monthly consumption (for chart — uses filtered period)
   const meses = {};
   for (const i of consumidos) {
     if (!i._finTs) continue;
@@ -6033,23 +6080,29 @@ function calcularMetricas() {
     meses[k] = (meses[k] || 0) + 1;
   }
 
-  // Velocity: consumidos / months in period
-  const mesesEnPeriodo = Math.max(1, Math.round((hastaTs - desdeTs) / (30.44 * 86400000)));
-  const velocidad = consumidos.length / mesesEnPeriodo;
+  // Velocity for projection — always based on last 6 full calendar months, independent of filter
+  const hoyVel = new Date();
+  const hace6m = new Date(hoyVel.getFullYear(), hoyVel.getMonth() - 6, 1); // start of month 6 months ago
+  const hace6mTs = hace6m.getTime();
+  // Use all items of this insumo (matching), not just filtered ones
+  const consumidos6m = matching.filter(i => i._estado === 'baja' && i._finTs >= hace6mTs && i._finTs <= hoyVel.getTime());
+  // Count only complete months (exclude current partial month)
+  const currentMonthKey = `${hoyVel.getFullYear()}-${String(hoyVel.getMonth()+1).padStart(2,'0')}`;
+  const consumidos6mComplete = consumidos6m.filter(i => {
+    const d = new Date(i._finTs);
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    return k !== currentMonthKey;
+  });
+  const velocidad = consumidos6mComplete.length / 6;
 
-  // Projection
-  const diasHastaAgotamiento = stockActual > 0 && velocidad > 0
-    ? Math.round((stockActual / velocidad) * 30.44) : null;
-  const fechaAgotamiento = diasHastaAgotamiento
-    ? new Date(Date.now() + diasHastaAgotamiento * 86400000) : null;
-  const mesesLead = 1; // assume 1 month lead time for ordering
-  const fechaPedido = fechaAgotamiento
-    ? new Date(fechaAgotamiento.getTime() - mesesLead * 30.44 * 86400000) : null;
-  const unidadesSugeridas = velocidad > 0 ? Math.ceil(velocidad * 6) : null; // 6 months buffer
+  // fechaAgotamiento is now calculated inside renderProyeccion based on selected period
+  // keeping a placeholder null here so renderMetricas receives the key
+  const fechaAgotamiento = null;
 
   // Tasa de uso
-  const totalComprados = matching.length;
-  const tasaUso = totalComprados > 0 ? Math.round((consumidos.length / totalComprados) * 100) : 0;
+  // Tasa de uso: consumidas / llegadas en el período filtrado
+  const llegadasEnPeriodo = enPeriodo.length;
+  const tasaUso = llegadasEnPeriodo > 0 ? Math.round((consumidos.length / llegadasEnPeriodo) * 100) : 0;
 
   // Rendimiento
   const conRend = enPeriodo.filter(i => i.rendimiento && !isNaN(parseFloat(i.rendimiento)));
@@ -6061,16 +6114,61 @@ function calcularMetricas() {
 
   renderMetricas({
     nombre, catalogo, stockActual, consumidos, enUso, enPeriodo: enPeriodo.length,
-    totalHistorial: matching.length, durProm, meses, velocidad, mesesEnPeriodo,
-    fechaAgotamiento, tasaUso,
-    desdeStr, hastaStr, llegadaDesdeStr, llegadaHastaStr, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
-    rendTotal2: enPeriodo.length, totalHistorial
+    totalHistorial: matching.length, durProm, meses,
+    fechaAgotamiento, tasaUso, velocidad: 0,
+    filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
+    rendTotal2: enPeriodo.length, totalHistorial,
+    matchingItems: matching
   });
 }
 
 function fmtFechaMetricas(d) {
   if (!d) return '—';
   return d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+}
+
+function calcVelocidad(meses) {
+  const hoyV = new Date();
+  const desde = new Date(hoyV.getFullYear(), hoyV.getMonth() - meses, 1);
+  const desdeTs = desde.getTime();
+  const currentKey = `${hoyV.getFullYear()}-${String(hoyV.getMonth()+1).padStart(2,'0')}`;
+  const consumidosN = (window._metMatchingItems || []).filter(i =>
+    i._estado === 'baja' && i._finTs >= desdeTs && i._finTs <= hoyV.getTime()
+  );
+  const completos = consumidosN.filter(i => {
+    const d2 = new Date(i._finTs);
+    return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}` !== currentKey;
+  });
+  return completos.length / meses;
+}
+
+function renderProyeccion(mesesBtn) {
+  const vel2 = calcVelocidad(mesesBtn);
+  const velStr = vel2 > 0 ? vel2.toFixed(1) : '0';
+  const stockA = window._metStockActual || 0;
+  const hoyP = new Date();
+  const diasAgo = stockA > 0 && vel2 > 0 ? Math.round((stockA / vel2) * 30.44) : null;
+  const fechaAgo = diasAgo ? new Date(Date.now() + diasAgo * 86400000) : null;
+  const colorAgo = fechaAgo
+    ? ((fechaAgo - hoyP) < 60*86400000 ? 'red' : (fechaAgo - hoyP) < 120*86400000 ? 'amber' : 'green')
+    : '';
+  const btnStyle = (m) => `padding:4px 10px;border-radius:5px;border:1px solid ${m===mesesBtn?'var(--accent)':'var(--border)'};background:${m===mesesBtn?'var(--accent-l)':'var(--surface2)'};color:${m===mesesBtn?'var(--accent-d)':'var(--mid)'};font-size:11px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:.15s`;
+  const el = document.getElementById('met-proyeccion');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+      <span style="font-size:11px;color:var(--mid)">Período velocidad:</span>
+      <button style="${btnStyle(3)}"  onclick="renderProyeccion(3)">3m</button>
+      <button style="${btnStyle(6)}"  onclick="renderProyeccion(6)">6m</button>
+      <button style="${btnStyle(12)}" onclick="renderProyeccion(12)">1a</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${metRow('Stock actual', `${stockA} unidades`)}
+      ${metRow('Consumo promedio', `${velStr} u/mes`)}
+      <div style="font-size:10px;color:var(--dim);padding:2px 12px 4px;margin-top:-6px">↳ promedio últimos ${mesesBtn} meses completos</div>
+      ${metRow('Tiempo estimado', fechaAgo ? `~${Math.round((fechaAgo - hoyP) / (30.44*86400000))} meses` : 'N/D', colorAgo || 'amber')}
+      ${metRow('Agotamiento estimado', fechaAgo ? fmtFechaMetricas(fechaAgo) : 'N/D', 'amber')}
+    </div>`;
 }
 
 function renderMetricas(d) {
@@ -6084,12 +6182,11 @@ function renderMetricas(d) {
   document.getElementById('met-res-period').textContent =
     `${d.desdeStr || '—'}  →  ${d.hastaStr || 'hoy'}`;
 
-  // KPIs
-  const vel = d.velocidad > 0 ? d.velocidad.toFixed(1) : '0';
-  const agot = d.fechaAgotamiento ? fmtFechaMetricas(d.fechaAgotamiento) : 'N/D';
-  const agotColor = d.fechaAgotamiento
-    ? (d.diasHastaAgotamiento < 60 ? 'var(--red)' : d.diasHastaAgotamiento < 120 ? 'var(--amber)' : 'var(--green)')
-    : 'var(--dim)';
+  // KPIs — use 6m velocity for display
+  const vel = calcVelocidad(6).toFixed(1);
+  // agotamiento is handled by renderProyeccion; use placeholder for KPI card
+  const agot = 'Ver proyección';
+  const agotColor = 'var(--accent)';
   document.getElementById('met-kpis').innerHTML = `
     <div class="card" style="border-top:2px solid var(--teal,#00c9a7)">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
@@ -6134,15 +6231,10 @@ function renderMetricas(d) {
     document.getElementById('met-chart').innerHTML = '<div style="color:var(--dim);font-size:13px;padding:16px 0">Sin consumos registrados en el período.</div>';
   }
 
-  // Projection
-  const hoy = new Date();
-  document.getElementById('met-proyeccion').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${metRow('Stock actual', `${d.stockActual} unidades`)}
-      ${metRow('Consumo promedio', `${vel} u/mes`)}
-      ${metRow('Tiempo estimado', d.fechaAgotamiento ? `~${Math.round((d.fechaAgotamiento - hoy) / (30.44*86400000))} meses` : 'N/D', d.fechaAgotamiento && (d.fechaAgotamiento - hoy) < 60*86400000 ? 'red' : 'amber')}
-      ${metRow('Agotamiento estimado', d.fechaAgotamiento ? fmtFechaMetricas(d.fechaAgotamiento) : 'N/D', 'amber')}
-    </div>`;
+  // Projection — store matching for recalculation by period buttons
+  window._metMatchingItems = d.matchingItems || [];
+  window._metStockActual   = d.stockActual;
+  renderProyeccion(6); // default: 6 months
 
   // Gauge
   const tasa = d.tasaUso;
@@ -6160,7 +6252,7 @@ function renderMetricas(d) {
       </defs>
       <text x="70" y="72" text-anchor="middle" font-family="IBM Plex Mono" font-size="18" font-weight="600" fill="var(--text)">${tasa}%</text>
     </svg>
-    <div style="font-size:12px;color:var(--mid);margin-top:6px">de las unidades compradas fueron consumidas</div>`;
+    <div style="font-size:12px;color:var(--mid);margin-top:6px">de las unidades que llegaron en este período fueron consumidas</div>`;
 
   // Lotes tbody
   const tbody = document.getElementById('met-lotes-tbody');
@@ -6219,16 +6311,17 @@ function renderMetricas(d) {
     rendWrap.style.display = 'none';
   }
 
-  // Insights
+  // Insights — use 6m velocity for stock assessment
   const insights = [];
-  if (d.velocidad > 0 && d.stockActual > 0) {
-    const mesesRestantes = d.stockActual / d.velocidad;
+  const velInsight = calcVelocidad(6);
+  if (velInsight > 0 && d.stockActual > 0) {
+    const mesesRestantes = d.stockActual / velInsight;
     if (mesesRestantes < 2) {
       insights.push({ type:'red', icon:'🚨', title:'Stock crítico', desc:`Quedan solo ${d.stockActual} unidades. Al ritmo actual se agotarán en menos de 2 meses. Hacer el pedido de reposición lo antes posible.` });
     } else if (mesesRestantes < 3) {
-      insights.push({ type:'amber', icon:'⏰', title:'Stock bajo — recomendamos pedir pronto', desc:`Con ${d.stockActual} unidades en stock y un consumo de ${vel} u/mes, el agotamiento estimado es en ${fmtFechaMetricas(d.fechaAgotamiento)}. Se recomienda hacer el pedido en ${fmtFechaMetricas(d.fechaPedido)}. Cantidad sugerida: ${d.unidadesSugeridas} unidades.` });
+      insights.push({ type:'amber', icon:'⏰', title:'Stock bajo — recomendamos pedir pronto', desc:`Con ${d.stockActual} unidades en stock y un consumo de ${velInsight.toFixed(1)} u/mes, el agotamiento estimado es próximo. Revisá la proyección de stock para el detalle.` });
     } else {
-      insights.push({ type:'green', icon:'📦', title:'Stock suficiente', desc:`Con ${d.stockActual} unidades y un consumo de ${vel} u/mes, el stock cubre hasta ${fmtFechaMetricas(d.fechaAgotamiento)} aproximadamente.` });
+      insights.push({ type:'green', icon:'📦', title:'Stock suficiente', desc:`Con ${d.stockActual} unidades y un consumo de ${velInsight.toFixed(1)} u/mes (últimos 6 meses), el stock dura aproximadamente ${Math.round(mesesRestantes)} meses más.` });
     }
   }
   if (d.consumidos.length === 0) {
@@ -6241,7 +6334,7 @@ function renderMetricas(d) {
     insights.push({ type:'teal', icon:'💡', title:`Rendimiento promedio: ${d.rendProm}`, desc:`Promedio calculado sobre ${d.rendCount} unidades con dato registrado. Rango: ${d.rendMin} – ${d.rendMax}.` });
   }
   if (d.tasaUso < 70 && d.totalHistorial > 3) {
-    insights.push({ type:'amber', icon:'⚠️', title:'Baja tasa de uso', desc:`Solo el ${d.tasaUso}% de las unidades compradas fueron consumidas en el historial. Verificar si hay unidades vencidas sin dar de baja o si se está comprando en exceso.` });
+    insights.push({ type:'amber', icon:'⚠️', title:'Baja tasa de uso', desc:`Solo el ${d.tasaUso}% de las unidades que llegaron en el período fueron consumidas. Verificar si hay unidades vencidas sin dar de baja o si se está comprando en exceso.` });
   }
 
   const typeColors = { red:'var(--red)', amber:'var(--amber)', green:'var(--green,#2ecc71)', blue:'var(--blue)', teal:'#00c9a7' };
