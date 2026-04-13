@@ -1108,7 +1108,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
     </div>
 
     <!-- KPIs -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;align-items:stretch;grid-auto-rows:1fr" id="met-kpis"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;grid-auto-rows:1fr" id="met-kpis"></div>
 
     <!-- Two col -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -1451,7 +1451,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -6207,7 +6207,7 @@ function renderMetricas(d) {
   const agotColor = fechaAgoKpi
     ? ((fechaAgoKpi - hoyKpi) < 60*86400000 ? 'var(--red)' : (fechaAgoKpi - hoyKpi) < 120*86400000 ? 'var(--amber)' : 'var(--accent)')
     : 'var(--dim)';
-  const kpiS = 'display:flex;flex-direction:column;min-height:110px';
+  const kpiS = 'display:flex;flex-direction:column;height:100%;box-sizing:border-box';
   document.getElementById('met-kpis').innerHTML = `
     <div class="card" style="border-top:2px solid var(--teal,#00c9a7);${kpiS}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
