@@ -1043,7 +1043,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:15px;pointer-events:none">⌕</span>
       <input type="text" id="met-search" placeholder="Buscar por nombre o N° catálogo…"
         style="width:100%;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--text);outline:none"
-        oninput="metricasAC()" autocomplete="off">
+        oninput="metricasAC()" onblur="setTimeout(()=>{const l=document.getElementById('met-ac-list');if(l)l.style.display='none'},150)" autocomplete="off">
       <div id="met-ac-list" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:200;display:none;max-height:200px;overflow-y:auto"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -1100,17 +1100,17 @@ mark{background:transparent;color:var(--accent);font-weight:700}
     <!-- Lotes table -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-title">Detalle por lote consumido</div>
-      <div style="overflow-x:auto">
+      <div style="overflow-x:auto;max-height:480px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent">
         <table style="width:100%;border-collapse:collapse;font-size:12px" id="met-lotes-table">
           <thead>
             <tr>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600">Lote</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600">F. llegada</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600">F. inicio uso</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600">F. fin consumo</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600">Duración uso</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600">Rendimiento</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600">Estado</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Lote</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">F. llegada</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">F. inicio uso</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">F. fin consumo</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Duración uso</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Rendimiento</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Estado</th>
             </tr>
           </thead>
           <tbody id="met-lotes-tbody"></tbody>
@@ -5793,19 +5793,27 @@ function metricasAC() {
   const results = [...seen.values()].slice(0, 8);
   if (!results.length) { list.style.display = 'none'; return; }
   list.innerHTML = results.map(r =>
-    `<div onclick="metricasACSelect(${JSON.stringify(r.nombre)},${JSON.stringify(r.catalogo)})"
-      style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)"
-      onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
+    `<div class="met-ac-item" data-nombre="${htmlEsc(r.nombre)}" data-catalogo="${htmlEsc(r.catalogo)}"
+      style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)">
       <span style="font-weight:500">${htmlEsc(r.nombre)}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);margin-left:8px">${htmlEsc(r.catalogo)}</span>
     </div>`
   ).join('');
+  // Attach click handlers
+  list.querySelectorAll('.met-ac-item').forEach(el => {
+    el.addEventListener('mouseenter', () => el.style.background = 'var(--surface2)');
+    el.addEventListener('mouseleave', () => el.style.background = '');
+    el.addEventListener('mousedown', e => {
+      e.preventDefault(); // prevent input blur before click fires
+      metricasACSelect(el.dataset.nombre, el.dataset.catalogo);
+    });
+  });
   list.style.display = 'block';
 }
 
 function metricasACSelect(nombre, catalogo) {
   const input = document.getElementById('met-search');
-  if (input) input.value = nombre;
+  if (input) { input.value = nombre; input.blur(); }
   const list = document.getElementById('met-ac-list');
   if (list) list.style.display = 'none';
 }
