@@ -6095,15 +6095,9 @@ function calcularMetricas() {
   });
   const velocidad = consumidos6mComplete.length / 6;
 
-  // Projection
-  const diasHastaAgotamiento = stockActual > 0 && velocidad > 0
-    ? Math.round((stockActual / velocidad) * 30.44) : null;
-  const fechaAgotamiento = diasHastaAgotamiento
-    ? new Date(Date.now() + diasHastaAgotamiento * 86400000) : null;
-  const mesesLead = 1; // assume 1 month lead time for ordering
-  const fechaPedido = fechaAgotamiento
-    ? new Date(fechaAgotamiento.getTime() - mesesLead * 30.44 * 86400000) : null;
-  const unidadesSugeridas = velocidad > 0 ? Math.ceil(velocidad * 6) : null; // 6 months buffer
+  // fechaAgotamiento is now calculated inside renderProyeccion based on selected period
+  // keeping a placeholder null here so renderMetricas receives the key
+  const fechaAgotamiento = null;
 
   // Tasa de uso
   // Tasa de uso: consumidas / llegadas en el período filtrado
@@ -6120,11 +6114,11 @@ function calcularMetricas() {
 
   renderMetricas({
     nombre, catalogo, stockActual, consumidos, enUso, enPeriodo: enPeriodo.length,
-    totalHistorial: matching.length, durProm, meses, velocidad, mesesEnPeriodo,
-    fechaAgotamiento, tasaUso,
-    desdeStr: document.getElementById('met-desde')?.value||'', hastaStr: document.getElementById('met-hasta')?.value||'', filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
+    totalHistorial: matching.length, durProm, meses,
+    fechaAgotamiento, tasaUso, velocidad: 0,
+    filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
     rendTotal2: enPeriodo.length, totalHistorial,
-    matchingItems: matching  // passed for velocity recalculation by period buttons
+    matchingItems: matching
   });
 }
 
@@ -6188,12 +6182,11 @@ function renderMetricas(d) {
   document.getElementById('met-res-period').textContent =
     `${d.desdeStr || '—'}  →  ${d.hastaStr || 'hoy'}`;
 
-  // KPIs
-  const vel = d.velocidad > 0 ? d.velocidad.toFixed(1) : '0';
-  const agot = d.fechaAgotamiento ? fmtFechaMetricas(d.fechaAgotamiento) : 'N/D';
-  const agotColor = d.fechaAgotamiento
-    ? (d.diasHastaAgotamiento < 60 ? 'var(--red)' : d.diasHastaAgotamiento < 120 ? 'var(--amber)' : 'var(--green)')
-    : 'var(--dim)';
+  // KPIs — use 6m velocity for display
+  const vel = calcVelocidad(6).toFixed(1);
+  // agotamiento is handled by renderProyeccion; use placeholder for KPI card
+  const agot = 'Ver proyección';
+  const agotColor = 'var(--accent)';
   document.getElementById('met-kpis').innerHTML = `
     <div class="card" style="border-top:2px solid var(--teal,#00c9a7)">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
@@ -6318,16 +6311,17 @@ function renderMetricas(d) {
     rendWrap.style.display = 'none';
   }
 
-  // Insights
+  // Insights — use 6m velocity for stock assessment
   const insights = [];
-  if (d.velocidad > 0 && d.stockActual > 0) {
-    const mesesRestantes = d.stockActual / d.velocidad;
+  const velInsight = calcVelocidad(6);
+  if (velInsight > 0 && d.stockActual > 0) {
+    const mesesRestantes = d.stockActual / velInsight;
     if (mesesRestantes < 2) {
       insights.push({ type:'red', icon:'🚨', title:'Stock crítico', desc:`Quedan solo ${d.stockActual} unidades. Al ritmo actual se agotarán en menos de 2 meses. Hacer el pedido de reposición lo antes posible.` });
     } else if (mesesRestantes < 3) {
-      insights.push({ type:'amber', icon:'⏰', title:'Stock bajo — recomendamos pedir pronto', desc:`Con ${d.stockActual} unidades en stock y un consumo de ${vel} u/mes, el agotamiento estimado es en ${fmtFechaMetricas(d.fechaAgotamiento)}. Se recomienda hacer el pedido en ${fmtFechaMetricas(d.fechaPedido)}. Cantidad sugerida: ${d.unidadesSugeridas} unidades.` });
+      insights.push({ type:'amber', icon:'⏰', title:'Stock bajo — recomendamos pedir pronto', desc:`Con ${d.stockActual} unidades en stock y un consumo de ${velInsight.toFixed(1)} u/mes, el agotamiento estimado es próximo. Revisá la proyección de stock para el detalle.` });
     } else {
-      insights.push({ type:'green', icon:'📦', title:'Stock suficiente', desc:`Con ${d.stockActual} unidades y un consumo de ${vel} u/mes, el stock cubre hasta ${fmtFechaMetricas(d.fechaAgotamiento)} aproximadamente.` });
+      insights.push({ type:'green', icon:'📦', title:'Stock suficiente', desc:`Con ${d.stockActual} unidades y un consumo de ${velInsight.toFixed(1)} u/mes (últimos 6 meses), el stock dura aproximadamente ${Math.round(mesesRestantes)} meses más.` });
     }
   }
   if (d.consumidos.length === 0) {
