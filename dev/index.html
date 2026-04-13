@@ -1038,21 +1038,30 @@ mark{background:transparent;color:var(--accent);font-weight:700}
   </div>
 
   <!-- SEARCH ROW -->
-  <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:24px">
-    <div style="flex:1;position:relative">
+  <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap">
+    <!-- Buscador -->
+    <div style="flex:0 0 280px;position:relative">
       <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:15px;pointer-events:none">⌕</span>
-      <input type="text" id="met-search" placeholder="Buscar por nombre o N° catálogo…"
-        style="width:100%;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--text);outline:none"
+      <input type="text" id="met-search" placeholder="Nombre o N° catálogo…"
+        style="width:100%;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);outline:none"
         oninput="metricasAC()" onblur="setTimeout(()=>{const l=document.getElementById('met-ac-list');if(l)l.style.display='none'},150)" autocomplete="off">
       <div id="met-ac-list" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:200;display:none;max-height:200px;overflow-y:auto"></div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span style="font-size:12px;color:var(--mid);white-space:nowrap">Período:</span>
-      <input type="date" id="met-desde" style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+    <!-- Período de consumo -->
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">Período:</span>
+      <input type="date" id="met-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
       <span style="color:var(--dim);font-size:12px">→</span>
-      <input type="date" id="met-hasta" style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+      <input type="date" id="met-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
     </div>
-    <button onclick="calcularMetricas()" style="padding:10px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;white-space:nowrap">Analizar</button>
+    <!-- Fecha de llegada -->
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">F. llegada:</span>
+      <input type="date" id="met-llegada-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+      <span style="color:var(--dim);font-size:12px">→</span>
+      <input type="date" id="met-llegada-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
+    </div>
+    <button onclick="calcularMetricas()" style="padding:9px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;white-space:nowrap">Analizar</button>
   </div>
 
   <!-- EMPTY STATE -->
@@ -1075,7 +1084,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
     </div>
 
     <!-- KPIs -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px" id="met-kpis"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;align-items:stretch" id="met-kpis"></div>
 
     <!-- Two col -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -5766,6 +5775,100 @@ function renderAdminLog() {
 // ═══════════════════════════════════════════════════════════════
 let _metCurrentItems = []; // items matching current search
 
+// ═══════════════════════════════════════════════════════════════
+// DÍAS HÁBILES — Calendario argentino
+// ═══════════════════════════════════════════════════════════════
+function getArgentinaHolidays(year) {
+  // Feriados fijos
+  const fixed = [
+    `${year}-01-01`, // Año Nuevo
+    `${year}-03-24`, // Día de la Memoria
+    `${year}-04-02`, // Malvinas
+    `${year}-05-01`, // Día del Trabajador
+    `${year}-05-25`, // Revolución de Mayo
+    `${year}-06-20`, // Belgrano
+    `${year}-07-09`, // Independencia
+    `${year}-08-17`, // San Martín (3er lunes agosto — ver abajo)
+    `${year}-10-12`, // Respeto a la Diversidad (2do lunes octubre — ver abajo)
+    `${year}-11-20`, // Soberanía Nacional (4to lunes noviembre — ver abajo)
+    `${year}-12-08`, // Inmaculada Concepción
+    `${year}-12-25`, // Navidad
+  ];
+  // Feriados movibles: San Martín = 3er lunes de agosto
+  const sanMartin = nthWeekday(year, 8, 1, 3); // month=8, Monday=1, nth=3
+  // Respeto Diversidad = 2do lunes de octubre
+  const diversidad = nthWeekday(year, 10, 1, 2);
+  // Soberanía = 4to lunes de noviembre
+  const soberania = nthWeekday(year, 11, 1, 4);
+  // Semana Santa (Jueves y Viernes Santo) — calculados por Pascua
+  const easter = getEaster(year);
+  const juevesSanto = new Date(easter); juevesSanto.setDate(easter.getDate() - 3);
+  const viernesSanto = new Date(easter); viernesSanto.setDate(easter.getDate() - 2);
+
+  const all = new Set([
+    ...fixed,
+    sanMartin, diversidad, soberania,
+    fmtIso(juevesSanto), fmtIso(viernesSanto)
+  ]);
+  // Remove the placeholder fixed entries that are actually movible
+  all.delete(`${year}-08-17`);
+  all.delete(`${year}-10-12`);
+  all.delete(`${year}-11-20`);
+  return all;
+}
+
+function fmtIso(d) {
+  return d.toISOString().slice(0,10);
+}
+
+function nthWeekday(year, month, weekday, nth) {
+  // weekday: 0=Sun,1=Mon,...,6=Sat
+  const d = new Date(year, month - 1, 1);
+  let count = 0;
+  while (true) {
+    if (d.getDay() === weekday) { count++; if (count === nth) return fmtIso(d); }
+    d.setDate(d.getDate() + 1);
+    if (d.getMonth() !== month - 1) break;
+  }
+  return fmtIso(new Date(year, month - 1, 1)); // fallback
+}
+
+function getEaster(year) {
+  // Anonymous Gregorian algorithm
+  const a = year % 19, b = Math.floor(year/100), c = year % 100;
+  const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+  const g = Math.floor((b-f+1)/3), h = (19*a+b-d-g+15) % 30;
+  const i = Math.floor(c/4), k = c % 4;
+  const l = (32+2*e+2*i-h-k) % 7;
+  const m = Math.floor((a+11*h+22*l)/451);
+  const month = Math.floor((h+l-7*m+114)/31);
+  const day = ((h+l-7*m+114) % 31) + 1;
+  return new Date(year, month-1, day);
+}
+
+// Cache holidays per year to avoid recalculating
+const _holidayCache = {};
+function isHolidayAR(dateStr) {
+  const year = parseInt(dateStr.slice(0,4));
+  if (!_holidayCache[year]) _holidayCache[year] = getArgentinaHolidays(year);
+  return _holidayCache[year].has(dateStr);
+}
+
+function countWorkingDays(startTs, endTs) {
+  if (!startTs || !endTs || endTs <= startTs) return 0;
+  let count = 0;
+  const d = new Date(startTs);
+  d.setHours(0,0,0,0);
+  const end = new Date(endTs);
+  end.setHours(0,0,0,0);
+  while (d < end) {
+    const day = d.getDay(); // 0=Sun, 6=Sat
+    if (day !== 0 && day !== 6 && !isHolidayAR(fmtIso(d))) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
 function initMetricas() {
   // Set default period: last 12 months
   const hoy = new Date();
@@ -5822,18 +5925,28 @@ function calcularMetricas() {
   const q = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
   const desdeStr = document.getElementById('met-desde')?.value || '';
   const hastaStr = document.getElementById('met-hasta')?.value || '';
+  const llegadaDesdeStr = document.getElementById('met-llegada-desde')?.value || '';
+  const llegadaHastaStr = document.getElementById('met-llegada-hasta')?.value || '';
 
   if (!q) { toast('Ingresá un nombre o catálogo para buscar', 'error'); return; }
 
   const desdeTs = desdeStr ? new Date(desdeStr).getTime() : 0;
   const hastaTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
+  const llegadaDesdeTs = llegadaDesdeStr ? new Date(llegadaDesdeStr).getTime() : 0;
+  const llegadaHastaTs = llegadaHastaStr ? new Date(llegadaHastaStr + 'T23:59:59').getTime() : Infinity;
 
   // Find matching items (by nombre or catalogo)
   const matching = stock.filter(i => i._nombre.includes(q) || i._cat.includes(q));
   if (!matching.length) { toast('No se encontraron insumos con ese criterio', 'error'); return; }
 
+  // Apply llegada date filter if set
+  const matchingFiltered = (llegadaDesdeTs || llegadaHastaTs < Infinity)
+    ? matching.filter(i => i._fechaTs >= llegadaDesdeTs && i._fechaTs <= llegadaHastaTs)
+    : matching;
+  const matchingForCalc = matchingFiltered.length ? matchingFiltered : matching;
+
   // Filter by period: include if finConsumo OR inicioConsumo falls within range, OR if in stock/in-use
-  const enPeriodo = matching.filter(i => {
+  const enPeriodo = matchingForCalc.filter(i => {
     if (i._finTs)   return i._finTs   >= desdeTs && i._finTs   <= hastaTs;
     if (i._inicioTs) return i._inicioTs >= desdeTs && i._inicioTs <= hastaTs;
     // In stock (no uso): include if fechaTs within range
@@ -5844,13 +5957,14 @@ function calcularMetricas() {
 
   const nombre = matching[0].nombre;
   const catalogo = matching[0].catalogo;
-  const stockActual = matching.filter(i => i._estado !== 'baja').length;
+  const stockActual = matchingForCalc.filter(i => i._estado !== 'baja').length;
+  const totalHistorial = matchingForCalc.length;
   const consumidos = enPeriodo.filter(i => i._estado === 'baja');
   const enUso = enPeriodo.filter(i => i.inicioConsumo && !i.finConsumo);
 
   // Duration per unit (days)
   const dursWithData = consumidos.filter(i => i._inicioTs && i._finTs && i._finTs > i._inicioTs);
-  const duraciones = dursWithData.map(i => Math.round((i._finTs - i._inicioTs) / 86400000));
+  const duraciones = dursWithData.map(i => countWorkingDays(i._inicioTs, i._finTs));
   const durProm = duraciones.length ? Math.round(duraciones.reduce((a,b)=>a+b,0)/duraciones.length) : null;
 
   // Monthly consumption
@@ -5891,9 +6005,9 @@ function calcularMetricas() {
   renderMetricas({
     nombre, catalogo, stockActual, consumidos, enUso, enPeriodo: enPeriodo.length,
     totalHistorial: matching.length, durProm, meses, velocidad, mesesEnPeriodo,
-    fechaAgotamiento, fechaPedido, unidadesSugeridas, tasaUso,
-    desdeStr, hastaStr, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
-    rendTotal2: enPeriodo.length
+    fechaAgotamiento, tasaUso,
+    desdeStr, hastaStr, llegadaDesdeStr, llegadaHastaStr, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
+    rendTotal2: enPeriodo.length, totalHistorial
   });
 }
 
@@ -5920,7 +6034,7 @@ function renderMetricas(d) {
     ? (d.diasHastaAgotamiento < 60 ? 'var(--red)' : d.diasHastaAgotamiento < 120 ? 'var(--amber)' : 'var(--green)')
     : 'var(--dim)';
   document.getElementById('met-kpis').innerHTML = `
-    <div class="card" style="border-top:2px solid var(--teal,#00c9a7);position:relative">
+    <div class="card" style="border-top:2px solid var(--teal,#00c9a7);position:relative;display:flex;flex-direction:column">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--teal,#00c9a7);line-height:1">${d.consumidos.length}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:6px">en el período seleccionado</div>
@@ -5933,7 +6047,7 @@ function renderMetricas(d) {
     <div class="card" style="border-top:2px solid var(--amber)">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Duración promedio</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--amber);line-height:1">${d.durProm ?? '—'}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px">${d.durProm ? 'días por unidad consumida' : 'sin datos suficientes'}</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px">${d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes'}</div>
     </div>
     <div class="card" style="border-top:2px solid ${agotColor}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Stock estimado hasta</div>
@@ -5971,8 +6085,6 @@ function renderMetricas(d) {
       ${metRow('Consumo promedio', `${vel} u/mes`)}
       ${metRow('Tiempo estimado', d.fechaAgotamiento ? `~${Math.round((d.fechaAgotamiento - hoy) / (30.44*86400000))} meses` : 'N/D', d.fechaAgotamiento && (d.fechaAgotamiento - hoy) < 60*86400000 ? 'red' : 'amber')}
       ${metRow('Agotamiento estimado', d.fechaAgotamiento ? fmtFechaMetricas(d.fechaAgotamiento) : 'N/D', 'amber')}
-      ${metRow('Recomendación de compra', d.fechaPedido ? fmtFechaMetricas(d.fechaPedido) : 'N/D', 'green')}
-      ${metRow('Unidades sugeridas a pedir', d.unidadesSugeridas ? `${d.unidadesSugeridas} unidades` : 'N/D')}
     </div>`;
 
   // Gauge
@@ -5998,7 +6110,7 @@ function renderMetricas(d) {
   if (d.consumidos.length || d.enUso.length) {
     const rows = [...d.consumidos, ...d.enUso].sort((a,b) => (a._finTs||a._inicioTs||0) - (b._finTs||b._inicioTs||0));
     tbody.innerHTML = rows.map(i => {
-      const durDias = i._finTs && i._inicioTs ? Math.round((i._finTs - i._inicioTs)/86400000) : null;
+      const durDias = i._finTs && i._inicioTs ? countWorkingDays(i._inicioTs, i._finTs) : null;
       const pctDur = durDias && d.durProm ? Math.min(100, Math.round((durDias/d.durProm)*100)) : 40;
       const barColor = i._estado === 'baja' ? 'var(--green,#2ecc71)' : 'var(--amber)';
       const estadoBadge = i._estado === 'baja'
@@ -6016,7 +6128,7 @@ function renderMetricas(d) {
             <div style="width:50px;height:4px;border-radius:2px;background:var(--surface2);overflow:hidden;flex-shrink:0">
               <div style="height:100%;border-radius:2px;width:${pctDur}%;background:${barColor}"></div>
             </div>
-            <span style="font-size:12px;color:var(--mid)">${durDias != null ? durDias + ' días' : '—'}</span>
+            <span style="font-size:12px;color:var(--mid)">${durDias != null ? durDias + ' días háb.' : '—'}</span>
           </div>
         </td>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border2);font-size:12px;color:var(--mid)">${htmlEsc(i.rendimiento) || '—'}</td>
