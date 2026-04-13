@@ -1451,7 +1451,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -5917,6 +5917,7 @@ function metricasToggleX() {
 }
 
 function metricasClearSearch() {
+  window._metSelectedCatalogo = null;
   const input = document.getElementById('met-search');
   if (input) { input.value = ''; input.focus(); }
   const x = document.getElementById('met-search-x');
@@ -5937,6 +5938,8 @@ function initMetricas() {
 }
 
 function metricasAC() {
+  // If user is typing manually, clear the stored catalogo selection
+  window._metSelectedCatalogo = null;
   const q = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
   const list = document.getElementById('met-ac-list');
   if (!list) return;
@@ -6006,6 +6009,8 @@ function metricasLoteAC() {
 function metricasACSelect(nombre, catalogo) {
   const input = document.getElementById('met-search');
   if (input) { input.value = nombre; input.blur(); }
+  // Store catalogo for exact filtering (avoids matching by misspelled nombre)
+  window._metSelectedCatalogo = catalogo;
   const list = document.getElementById('met-ac-list');
   if (list) list.style.display = 'none';
 }
@@ -6016,8 +6021,11 @@ function calcularMetricas() {
 
   if (!q) { toast('Ingresá un nombre o catálogo para buscar', 'error'); return; }
 
-  // Find all matching items by nombre or catalogo
-  const matching = stock.filter(i => i._nombre.includes(q) || i._cat.includes(q));
+  // Find all matching items — use exact catalogo if selected from autocomplete, else search by nombre+catalogo
+  const _selCat = (window._metSelectedCatalogo || '').toLowerCase().trim();
+  const matching = _selCat
+    ? stock.filter(i => i._cat === _selCat)
+    : stock.filter(i => i._nombre.includes(q) || i._cat.includes(q));
   if (!matching.length) { toast('No se encontraron insumos con ese criterio', 'error'); return; }
 
   // ── Apply the active filter ──────────────────────────────────
@@ -6184,29 +6192,36 @@ function renderMetricas(d) {
 
   // KPIs — use 6m velocity for display
   const vel = calcVelocidad(6).toFixed(1);
-  // agotamiento is handled by renderProyeccion; use placeholder for KPI card
-  const agot = 'Ver proyección';
-  const agotColor = 'var(--accent)';
+  // Calculate agotamiento directly for KPI card
+  const vel6kpi = calcVelocidad(6);
+  const hoyKpi = new Date();
+  const diasAgoKpi = d.stockActual > 0 && vel6kpi > 0 ? Math.round((d.stockActual / vel6kpi) * 30.44) : null;
+  const fechaAgoKpi = diasAgoKpi ? new Date(Date.now() + diasAgoKpi * 86400000) : null;
+  const agot = fechaAgoKpi ? fmtFechaMetricas(fechaAgoKpi) : (d.stockActual > 0 ? 'Sin consumos' : '—');
+  const agotColor = fechaAgoKpi
+    ? ((fechaAgoKpi - hoyKpi) < 60*86400000 ? 'var(--red)' : (fechaAgoKpi - hoyKpi) < 120*86400000 ? 'var(--amber)' : 'var(--accent)')
+    : 'var(--dim)';
+  const kpiStyle = 'display:flex;flex-direction:column;min-height:110px';
   document.getElementById('met-kpis').innerHTML = `
-    <div class="card" style="border-top:2px solid var(--teal,#00c9a7)">
+    <div class="card" style="border-top:2px solid var(--teal,#00c9a7);${kpiStyle}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Unidades consumidas</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--teal,#00c9a7);line-height:1">${d.consumidos.length}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">en el período seleccionado</div>
     </div>
-    <div class="card" style="border-top:2px solid var(--accent)">
+    <div class="card" style="border-top:2px solid var(--accent);${kpiStyle}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Velocidad de consumo</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--accent);line-height:1">${vel}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">unidades / mes (promedio)</div>
     </div>
-    <div class="card" style="border-top:2px solid var(--amber)">
+    <div class="card" style="border-top:2px solid var(--amber);${kpiStyle}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Duración promedio</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--amber);line-height:1">${d.durProm ?? '—'}</div>
       <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes'}</div>
     </div>
-    <div class="card" style="border-top:2px solid ${agotColor}">
+    <div class="card" style="border-top:2px solid ${agotColor};${kpiStyle}">
       <div style="font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Stock estimado hasta</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:${agotColor};line-height:1">${agot}</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.stockActual} unidades × ~${d.durProm ?? '?'} días c/u</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:${agotColor};line-height:1.1">${agot}</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:auto;padding-top:6px">${d.stockActual} unidades · vel. ${vel} u/mes</div>
     </div>`;
 
   // Monthly chart
