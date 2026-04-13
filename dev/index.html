@@ -6071,7 +6071,7 @@ function calcularMetricas() {
   const duraciones = dursWithData.map(i => countWorkingDays(i._inicioTs, i._finTs));
   const durProm = duraciones.length ? Math.round(duraciones.reduce((a,b)=>a+b,0)/duraciones.length) : null;
 
-  // Monthly consumption
+  // Monthly consumption (for chart — uses filtered period)
   const meses = {};
   for (const i of consumidos) {
     if (!i._finTs) continue;
@@ -6080,13 +6080,20 @@ function calcularMetricas() {
     meses[k] = (meses[k] || 0) + 1;
   }
 
-  // Velocity: consumidos / months in period
-  const mesesEnPeriodo = (filtroTipo === 'periodo' && desdeTs && hastaTs > desdeTs)
-    ? Math.max(1, Math.round((hastaTs - desdeTs) / (30.44 * 86400000)))
-    : (consumidos.length > 1
-        ? Math.max(1, Math.round((Math.max(...consumidos.map(i=>i._finTs||0)) - Math.min(...consumidos.map(i=>i._finTs||i._inicioTs||0))) / (30.44 * 86400000)))
-        : 1);
-  const velocidad = consumidos.length / mesesEnPeriodo;
+  // Velocity for projection — always based on last 6 full calendar months, independent of filter
+  const hoyVel = new Date();
+  const hace6m = new Date(hoyVel.getFullYear(), hoyVel.getMonth() - 6, 1); // start of month 6 months ago
+  const hace6mTs = hace6m.getTime();
+  // Use all items of this insumo (matching), not just filtered ones
+  const consumidos6m = matching.filter(i => i._estado === 'baja' && i._finTs >= hace6mTs && i._finTs <= hoyVel.getTime());
+  // Count only complete months (exclude current partial month)
+  const currentMonthKey = `${hoyVel.getFullYear()}-${String(hoyVel.getMonth()+1).padStart(2,'0')}`;
+  const consumidos6mComplete = consumidos6m.filter(i => {
+    const d = new Date(i._finTs);
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    return k !== currentMonthKey;
+  });
+  const velocidad = consumidos6mComplete.length / 6;
 
   // Projection
   const diasHastaAgotamiento = stockActual > 0 && velocidad > 0
@@ -6099,8 +6106,9 @@ function calcularMetricas() {
   const unidadesSugeridas = velocidad > 0 ? Math.ceil(velocidad * 6) : null; // 6 months buffer
 
   // Tasa de uso
-  const totalComprados = matching.length;
-  const tasaUso = totalComprados > 0 ? Math.round((consumidos.length / totalComprados) * 100) : 0;
+  // Tasa de uso: consumidas / llegadas en el período filtrado
+  const llegadasEnPeriodo = enPeriodo.length;
+  const tasaUso = llegadasEnPeriodo > 0 ? Math.round((consumidos.length / llegadasEnPeriodo) * 100) : 0;
 
   // Rendimiento
   const conRend = enPeriodo.filter(i => i.rendimiento && !isNaN(parseFloat(i.rendimiento)));
@@ -6115,7 +6123,8 @@ function calcularMetricas() {
     totalHistorial: matching.length, durProm, meses, velocidad, mesesEnPeriodo,
     fechaAgotamiento, tasaUso,
     desdeStr: document.getElementById('met-desde')?.value||'', hastaStr: document.getElementById('met-hasta')?.value||'', filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
-    rendTotal2: enPeriodo.length, totalHistorial
+    rendTotal2: enPeriodo.length, totalHistorial,
+    matchingItems: matching  // passed for velocity recalculation by period buttons
   });
 }
 
@@ -6185,15 +6194,55 @@ function renderMetricas(d) {
     document.getElementById('met-chart').innerHTML = '<div style="color:var(--dim);font-size:13px;padding:16px 0">Sin consumos registrados en el período.</div>';
   }
 
-  // Projection
-  const hoy = new Date();
-  document.getElementById('met-proyeccion').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${metRow('Stock actual', `${d.stockActual} unidades`)}
-      ${metRow('Consumo promedio', `${vel} u/mes`)}
-      ${metRow('Tiempo estimado', d.fechaAgotamiento ? `~${Math.round((d.fechaAgotamiento - hoy) / (30.44*86400000))} meses` : 'N/D', d.fechaAgotamiento && (d.fechaAgotamiento - hoy) < 60*86400000 ? 'red' : 'amber')}
-      ${metRow('Agotamiento estimado', d.fechaAgotamiento ? fmtFechaMetricas(d.fechaAgotamiento) : 'N/D', 'amber')}
-    </div>`;
+  // Projection — store matching for recalculation
+  window._metMatchingItems = d.matchingItems || [];
+  window._metStockActual   = d.stockActual;
+
+  function calcVelocidad(meses) {
+    const hoyV = new Date();
+    const desde = new Date(hoyV.getFullYear(), hoyV.getMonth() - meses, 1);
+    const desdeTs = desde.getTime();
+    const currentKey = `${hoyV.getFullYear()}-${String(hoyV.getMonth()+1).padStart(2,'0')}`;
+    const consumidosN = window._metMatchingItems.filter(i =>
+      i._estado === 'baja' && i._finTs >= desdeTs && i._finTs <= hoyV.getTime()
+    );
+    const completos = consumidosN.filter(i => {
+      const d2 = new Date(i._finTs);
+      return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}` !== currentKey;
+    });
+    return completos.length / meses;
+  }
+
+  function renderProyeccion(mesesBtn) {
+    const vel2 = calcVelocidad(mesesBtn);
+    const velStr = vel2 > 0 ? vel2.toFixed(1) : '0';
+    const stockA = window._metStockActual;
+    const hoyP = new Date();
+    const diasAgo = stockA > 0 && vel2 > 0 ? Math.round((stockA / vel2) * 30.44) : null;
+    const fechaAgo = diasAgo ? new Date(Date.now() + diasAgo * 86400000) : null;
+    const colorAgo = fechaAgo
+      ? ((fechaAgo - hoyP) < 60*86400000 ? 'red' : (fechaAgo - hoyP) < 120*86400000 ? 'amber' : 'green')
+      : '';
+
+    const btnStyle = (m) => `padding:4px 10px;border-radius:5px;border:1px solid ${m===mesesBtn?'var(--accent)':'var(--border)'};background:${m===mesesBtn?'var(--accent-l)':'var(--surface2)'};color:${m===mesesBtn?'var(--accent-d)':'var(--mid)'};font-size:11px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:.15s`;
+
+    document.getElementById('met-proyeccion').innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--mid)">Período velocidad:</span>
+        <button style="${btnStyle(3)}"  onclick="renderProyeccion(3)">3m</button>
+        <button style="${btnStyle(6)}"  onclick="renderProyeccion(6)">6m</button>
+        <button style="${btnStyle(12)}" onclick="renderProyeccion(12)">1a</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${metRow('Stock actual', `${stockA} unidades`)}
+        ${metRow('Consumo promedio', `${velStr} u/mes`)}
+        <div style="font-size:10px;color:var(--dim);padding:2px 12px 4px;margin-top:-6px">↳ promedio últimos ${mesesBtn} meses completos</div>
+        ${metRow('Tiempo estimado', fechaAgo ? `~${Math.round((fechaAgo - hoyP) / (30.44*86400000))} meses` : 'N/D', colorAgo || 'amber')}
+        ${metRow('Agotamiento estimado', fechaAgo ? fmtFechaMetricas(fechaAgo) : 'N/D', 'amber')}
+      </div>`;
+  }
+
+  renderProyeccion(6); // default: 6 months
 
   // Gauge
   const tasa = d.tasaUso;
@@ -6211,7 +6260,7 @@ function renderMetricas(d) {
       </defs>
       <text x="70" y="72" text-anchor="middle" font-family="IBM Plex Mono" font-size="18" font-weight="600" fill="var(--text)">${tasa}%</text>
     </svg>
-    <div style="font-size:12px;color:var(--mid);margin-top:6px">de las unidades compradas fueron consumidas</div>`;
+    <div style="font-size:12px;color:var(--mid);margin-top:6px">de las unidades que llegaron en este período fueron consumidas</div>`;
 
   // Lotes tbody
   const tbody = document.getElementById('met-lotes-tbody');
@@ -6292,7 +6341,7 @@ function renderMetricas(d) {
     insights.push({ type:'teal', icon:'💡', title:`Rendimiento promedio: ${d.rendProm}`, desc:`Promedio calculado sobre ${d.rendCount} unidades con dato registrado. Rango: ${d.rendMin} – ${d.rendMax}.` });
   }
   if (d.tasaUso < 70 && d.totalHistorial > 3) {
-    insights.push({ type:'amber', icon:'⚠️', title:'Baja tasa de uso', desc:`Solo el ${d.tasaUso}% de las unidades compradas fueron consumidas en el historial. Verificar si hay unidades vencidas sin dar de baja o si se está comprando en exceso.` });
+    insights.push({ type:'amber', icon:'⚠️', title:'Baja tasa de uso', desc:`Solo el ${d.tasaUso}% de las unidades que llegaron en el período fueron consumidas. Verificar si hay unidades vencidas sin dar de baja o si se está comprando en exceso.` });
   }
 
   const typeColors = { red:'var(--red)', amber:'var(--amber)', green:'var(--green,#2ecc71)', blue:'var(--blue)', teal:'#00c9a7' };
