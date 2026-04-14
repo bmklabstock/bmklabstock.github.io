@@ -1451,7 +1451,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -6125,6 +6125,8 @@ function calcularMetricas() {
     filtroTipo, rendProm, rendMin, rendMax, rendTotal, rendCount: rendVals.length,
     rendTotal2: enPeriodo.length, totalHistorial,
     matchingItems: matching,
+    periodDesdeTs: desdeTs,
+    periodHastaTs: hastaTs,
     desdeStr: filtroTipo === 'llegada'
       ? (document.getElementById('met-llegada-desde')?.value || '')
       : filtroTipo === 'lote'
@@ -6143,33 +6145,36 @@ function fmtFechaMetricas(d) {
   return d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
 }
 
-function calcVelocidad(meses) {
-  const hoyV = new Date();
-  const desde = new Date(hoyV.getFullYear(), hoyV.getMonth() - meses, 1);
-  const desdeTs = desde.getTime();
-  const currentKey = `${hoyV.getFullYear()}-${String(hoyV.getMonth()+1).padStart(2,'0')}`;
-  // Use _finTs for consumed, _inicioTs for in-use items
+function calcVelocidad() {
+  // Velocidad = (unidades_consumidas / dias_reales_del_periodo) * 30.44
+  // Usa dias reales del periodo seleccionado — sin ajustes por meses calendario
   const tsOf = i => i._finTs || i._inicioTs || 0;
-  const consumidosN = (window._metMatchingItems || []).filter(i =>
-    (i._estado === 'baja' || i.inicioConsumo) && tsOf(i) >= desdeTs && tsOf(i) <= hoyV.getTime()
-  );
-  const completos = consumidosN.filter(i => {
-    const d2 = new Date(tsOf(i));
-    return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}` !== currentKey;
-  });
-  if (completos.length > 0) return completos.length / meses;
-  // Fallback: use full history
-  const allConsumed = (window._metMatchingItems || []).filter(i => tsOf(i) > 0);
-  if (!allConsumed.length) return 0;
-  const minTs = Math.min(...allConsumed.map(i => tsOf(i)));
-  const maxTs = Math.max(...allConsumed.map(i => tsOf(i)));
-  const spanMeses = Math.max(1, (maxTs - minTs) / (30.44 * 86400000));
-  return allConsumed.length / spanMeses;
+  const items = window._metMatchingItems || [];
+
+  // Todos los items con timestamp valido
+  const consumed = items.filter(i => (i._estado === 'baja' || i.inicioConsumo) && tsOf(i) > 0);
+  if (!consumed.length) return 0;
+
+  // Rango del periodo: usar bounds almacenados si existen, sino derivar de los datos
+  let desdeTs = window._metPeriodDesdeTs || 0;
+  let hastaTs = window._metPeriodHastaTs || 0;
+
+  if (!desdeTs || !hastaTs) {
+    // Fallback: derivar span de los items consumidos
+    desdeTs = Math.min(...consumed.map(i => tsOf(i)));
+    hastaTs = Math.max(...consumed.map(i => tsOf(i)));
+  }
+
+  const diasReales = Math.max(1, (hastaTs - desdeTs) / 86400000);
+  const consumidosEnPeriodo = consumed.filter(i => tsOf(i) >= desdeTs && tsOf(i) <= hastaTs);
+  if (!consumidosEnPeriodo.length) return 0;
+
+  return (consumidosEnPeriodo.length / diasReales) * 30.44;
 }
 
-function renderProyeccion(mesesBtn) {
-  const vel2 = calcVelocidad(mesesBtn);
-  const velStr = vel2 > 0 ? vel2.toFixed(1) : '0';
+function renderProyeccion() {
+  const vel2 = calcVelocidad();
+  const velStr = vel2 > 0 ? vel2.toFixed(2) : '0';
   const stockA = window._metStockActual || 0;
   const hoyP = new Date();
   const diasAgo = stockA > 0 && vel2 > 0 ? Math.round((stockA / vel2) * 30.44) : null;
@@ -6177,20 +6182,13 @@ function renderProyeccion(mesesBtn) {
   const colorAgo = fechaAgo
     ? ((fechaAgo - hoyP) < 60*86400000 ? 'red' : (fechaAgo - hoyP) < 120*86400000 ? 'amber' : 'green')
     : '';
-  const btnStyle = (m) => `padding:4px 10px;border-radius:5px;border:1px solid ${m===mesesBtn?'var(--accent)':'var(--border)'};background:${m===mesesBtn?'var(--accent-l)':'var(--surface2)'};color:${m===mesesBtn?'var(--accent-d)':'var(--mid)'};font-size:11px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:.15s`;
   const el = document.getElementById('met-proyeccion');
   if (!el) return;
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
-      <span style="font-size:11px;color:var(--mid)">Período velocidad:</span>
-      <button style="${btnStyle(3)}"  onclick="renderProyeccion(3)">3m</button>
-      <button style="${btnStyle(6)}"  onclick="renderProyeccion(6)">6m</button>
-      <button style="${btnStyle(12)}" onclick="renderProyeccion(12)">1a</button>
-    </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${metRow('Stock actual', `${stockA} unidades`)}
       ${metRow('Consumo promedio', `${velStr} u/mes`)}
-      <div style="font-size:10px;color:var(--dim);padding:2px 12px 4px;margin-top:-6px">↳ promedio últimos ${mesesBtn} meses completos</div>
+      <div style="font-size:10px;color:var(--dim);padding:2px 12px 4px;margin-top:-6px">↳ basado en días reales del período seleccionado</div>
       ${metRow('Tiempo estimado', fechaAgo ? `~${Math.round((fechaAgo - hoyP) / (30.44*86400000))} meses` : 'N/D', colorAgo || 'amber')}
       ${metRow('Agotamiento estimado', fechaAgo ? fmtFechaMetricas(fechaAgo) : 'N/D', 'amber')}
     </div>`;
@@ -6198,8 +6196,10 @@ function renderProyeccion(mesesBtn) {
 
 function renderMetricas(d) {
   // Assign matching items FIRST so calcVelocidad() works correctly on first call
-  window._metMatchingItems = d.matchingItems || [];
-  window._metStockActual   = d.stockActual;
+  window._metMatchingItems  = d.matchingItems || [];
+  window._metStockActual    = d.stockActual;
+  window._metPeriodDesdeTs  = d.periodDesdeTs || 0;
+  window._metPeriodHastaTs  = d.periodHastaTs || Date.now();
 
   document.getElementById('met-empty').style.display = 'none';
   document.getElementById('met-results').style.display = 'block';
@@ -6212,8 +6212,8 @@ function renderMetricas(d) {
     `${d.desdeStr || '—'}  →  ${d.hastaStr || 'hoy'}`;
 
   // KPIs — fixed uniform cards
-  const vel = calcVelocidad(6).toFixed(1);
-  const vel6kpi = calcVelocidad(6);
+  const vel = calcVelocidad().toFixed(2);
+  const vel6kpi = calcVelocidad();
   const hoyKpi = new Date();
   const diasAgoKpi = d.stockActual > 0 && vel6kpi > 0 ? Math.round((d.stockActual / vel6kpi) * 30.44) : null;
   const fechaAgoKpi = diasAgoKpi ? new Date(Date.now() + diasAgoKpi * 86400000) : null;
@@ -6255,8 +6255,8 @@ function renderMetricas(d) {
     document.getElementById('met-chart').innerHTML = '<div style="color:var(--dim);font-size:13px;padding:16px 0">Sin consumos registrados en el período.</div>';
   }
 
-  // Projection — store matching for recalculation by period buttons
-  renderProyeccion(6); // default: 6 months
+  // Projection — based on selected period days
+  renderProyeccion();
 
   // Gauge
   const tasa = d.tasaUso;
@@ -6333,9 +6333,9 @@ function renderMetricas(d) {
     rendWrap.style.display = 'none';
   }
 
-  // Insights — use 6m velocity for stock assessment
+  // Insights — use period velocity for stock assessment
   const insights = [];
-  const velInsight = calcVelocidad(6);
+  const velInsight = calcVelocidad();
   if (velInsight > 0 && d.stockActual > 0) {
     const mesesRestantes = d.stockActual / velInsight;
     if (mesesRestantes < 2) {
