@@ -3197,10 +3197,18 @@ function renderConsulta() {
     i._nombre.includes(consultaQuery)||
     i._cat.includes(consultaQuery)||
     i._lot.includes(consultaQuery));
-  if (consultaFilter!=='todos') items=items.filter(i=>getEstado(i)===consultaFilter);
+  if (consultaFilter!=='todos') items=items.filter(i=>{
+    const e = getEstado(i);
+    if (consultaFilter === 'disponible') return e === 'disponible' || e === 'vence';
+    return e === consultaFilter;
+  });
 
   // ── Filtros personalizados ──────────────────────────────────
-  if (fpFiltros.estados.size)   items = items.filter(i => fpFiltros.estados.has(getEstado(i)));
+  if (fpFiltros.estados.size)   items = items.filter(i => {
+    const e = getEstado(i);
+    if (fpFiltros.estados.has('disponible') && e === 'vence') return true;
+    return fpFiltros.estados.has(e);
+  });
   // Catálogo y nombre se combinan como OR: pasa si coincide con algún catálogo O algún nombre seleccionado
   if (fpFiltros.catalogos.size || fpFiltros.nombres.size) {
     items = items.filter(i =>
@@ -4240,10 +4248,18 @@ function getConsultaItems() {
     i._nombre.includes(consultaQuery) ||
     i._cat.includes(consultaQuery) ||
     i._lot.includes(consultaQuery));
-  if (consultaFilter !== 'todos') items = items.filter(i => getEstado(i) === consultaFilter);
+  if (consultaFilter !== 'todos') items = items.filter(i => {
+    const e = getEstado(i);
+    if (consultaFilter === 'disponible') return e === 'disponible' || e === 'vence';
+    return e === consultaFilter;
+  });
 
   // Filtros personalizados
-  if (fpFiltros.estados.size)   items = items.filter(i => fpFiltros.estados.has(getEstado(i)));
+  if (fpFiltros.estados.size)   items = items.filter(i => {
+    const e = getEstado(i);
+    if (fpFiltros.estados.has('disponible') && e === 'vence') return true;
+    return fpFiltros.estados.has(e);
+  });
   if (fpFiltros.catalogos.size || fpFiltros.nombres.size) {
     items = items.filter(i =>
       (fpFiltros.catalogos.size && fpFiltros.catalogos.has(i.catalogo)) ||
