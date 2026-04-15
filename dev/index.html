@@ -1050,38 +1050,13 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       <div id="met-ac-list" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:200;display:none;max-height:200px;overflow-y:auto"></div>
     </div>
 
-    <!-- Filtrar por: dropdown + inputs dinámicos -->
+    <!-- Periodo de consumo: inputs de fecha -->
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">Filtrar por:</span>
-      <select id="met-filtro-tipo" onchange="metricasFiltroChange()"
-        style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none;cursor:pointer">
-        <option value="periodo">Período de consumo</option>
-        <option value="llegada">Fecha de llegada</option>
-        <option value="lote">N° de lote</option>
-      </select>
-
-      <!-- Panel: Período -->
-      <div id="met-filtro-periodo" style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">Período de consumo:</span>
+      <div style="display:flex;gap:6px;align-items:center">
         <input type="date" id="met-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
         <span style="color:var(--dim);font-size:12px">→</span>
         <input type="date" id="met-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
-      </div>
-
-      <!-- Panel: Fecha llegada -->
-      <div id="met-filtro-llegada" style="display:none;gap:6px;align-items:center">
-        <input type="date" id="met-llegada-desde" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
-        <span style="color:var(--dim);font-size:12px">→</span>
-        <input type="date" id="met-llegada-hasta" style="padding:7px 9px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;outline:none">
-      </div>
-
-      <!-- Panel: Lote -->
-      <div id="met-filtro-lote" style="display:none;gap:6px;align-items:center">
-        <div style="position:relative">
-          <input type="text" id="met-lote-val" placeholder="Ej: 204935"
-            style="padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-family:'IBM Plex Mono',monospace;outline:none;width:180px"
-            oninput="metricasLoteAC()" onblur="setTimeout(()=>{const l=document.getElementById('met-lote-ac-list');if(l)l.style.display='none'},150)" autocomplete="off">
-          <div id="met-lote-ac-list" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:6px;box-shadow:var(--shadow-lg);z-index:200;display:none;max-height:200px;overflow-y:auto;min-width:220px"></div>
-        </div>
       </div>
     </div>
 
@@ -1137,6 +1112,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
         <table style="width:100%;border-collapse:collapse;font-size:12px" id="met-lotes-table">
           <thead>
             <tr>
+              <th style="padding:7px 10px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1;width:36px">Excluir</th>
               <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Lote</th>
               <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">F. llegada</th>
               <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">F. inicio uso</th>
@@ -1451,7 +1427,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -5902,12 +5878,48 @@ function countWorkingDays(startTs, endTs) {
 }
 
 function metricasFiltroChange() {
-  const tipo = document.getElementById('met-filtro-tipo')?.value;
-  const panels = { periodo: 'met-filtro-periodo', llegada: 'met-filtro-llegada', lote: 'met-filtro-lote' };
-  Object.entries(panels).forEach(([k, id]) => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = k === tipo ? 'flex' : 'none';
-  });
+  // No-op: only period filter exists now
+}
+
+function metToggleExcluir(idx) {
+  if (!window._metExcluidos) window._metExcluidos = {};
+  window._metExcluidos[idx] = !window._metExcluidos[idx];
+
+  // Update row opacity
+  const row = document.getElementById('met-lote-row-' + idx);
+  if (row) row.style.opacity = window._metExcluidos[idx] ? '0.4' : '1';
+
+  // Recalculate durProm excluding checked rows
+  const rows = window._metLotesRows || [];
+  const activeDurs = rows
+    .filter((i, j) => !window._metExcluidos[j] && i._estado === 'baja' && i._inicioTs && i._finTs && i._finTs > i._inicioTs)
+    .map(i => countWorkingDays(i._inicioTs, i._finTs));
+  const newDurProm = activeDurs.length ? Math.round(activeDurs.reduce((a,b)=>a+b,0)/activeDurs.length) : null;
+
+  // Update the durProm KPI card (3rd card)
+  const kpis = document.getElementById('met-kpis');
+  if (kpis) {
+    const cards = kpis.querySelectorAll('div[style*="border-top"]');
+    if (cards[2]) {
+      const valEl = cards[2].querySelector('div[style*="IBM Plex Mono"]');
+      const subEl = cards[2].querySelector('div[style*="margin-top:8px"]');
+      if (valEl) valEl.textContent = newDurProm ?? '—';
+      if (subEl) subEl.textContent = newDurProm ? 'días hábiles por unidad' : 'sin datos suficientes';
+    }
+  }
+
+  // Show exclusion note if any are excluded
+  const excCount = Object.values(window._metExcluidos).filter(Boolean).length;
+  let noteEl = document.getElementById('met-excluidos-note');
+  if (!noteEl) {
+    noteEl = document.createElement('div');
+    noteEl.id = 'met-excluidos-note';
+    noteEl.style.cssText = 'font-size:11px;color:var(--amber);margin-top:8px;padding:6px 10px;background:var(--amber-l);border-radius:6px;border:1px solid var(--amber)';
+    const table = document.querySelector('#met-lotes-tbody')?.closest('.card');
+    if (table) table.appendChild(noteEl);
+  }
+  noteEl.style.display = excCount > 0 ? 'block' : 'none';
+  if (excCount > 0) noteEl.textContent = `⚠️ ${excCount} unidad${excCount > 1 ? 'es excluidas' : ' excluida'} del cálculo de duración promedio.`;
 }
 
 function metricasToggleX() {
@@ -5972,38 +5984,6 @@ function metricasAC() {
   list.style.display = 'block';
 }
 
-function metricasLoteAC() {
-  const q = (document.getElementById('met-lote-val')?.value || '').trim().toLowerCase();
-  const list = document.getElementById('met-lote-ac-list');
-  if (!list) return;
-  if (q.length < 2) { list.style.display = 'none'; return; }
-  // Get search term from main buscador to filter lotes of matching items only
-  const searchQ = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
-  const lotes = new Set();
-  for (const i of stock) {
-    if (searchQ && !i._nombre.includes(searchQ) && !i._cat.includes(searchQ)) continue;
-    if (i._lot.includes(q)) lotes.add(i.lote.trim());
-  }
-  const results = [...lotes].slice(0, 10);
-  if (!results.length) { list.style.display = 'none'; return; }
-  list.innerHTML = results.map(lote =>
-    `<div class="met-lote-ac-item" data-lote="${htmlEsc(lote)}"
-      style="padding:8px 14px;cursor:pointer;font-size:12px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border2)">
-      ${htmlEsc(lote)}
-    </div>`
-  ).join('');
-  list.querySelectorAll('.met-lote-ac-item').forEach(el => {
-    el.addEventListener('mouseenter', () => el.style.background = 'var(--surface2)');
-    el.addEventListener('mouseleave', () => el.style.background = '');
-    el.addEventListener('mousedown', e => {
-      e.preventDefault();
-      const input = document.getElementById('met-lote-val');
-      if (input) input.value = el.dataset.lote;
-      list.style.display = 'none';
-    });
-  });
-  list.style.display = 'block';
-}
 
 function metricasACSelect(nombre, catalogo) {
   const input = document.getElementById('met-search');
@@ -6015,9 +5995,9 @@ function metricasACSelect(nombre, catalogo) {
 
 function calcularMetricas() {
   const q = (document.getElementById('met-search')?.value || '').toLowerCase().trim();
-  const filtroTipo = document.getElementById('met-filtro-tipo')?.value || 'periodo';
 
   if (!q) { toast('Ingresá un nombre o catálogo para buscar', 'error'); return; }
+  window._metExcluidos = {}; // reset exclusions on new search
 
   // Find all matching items — use exact catalogo if selected from AC, else free search
   const _selCat = (window._metSelectedCatalogo || '').toLowerCase().trim();
@@ -6026,42 +6006,21 @@ function calcularMetricas() {
     : stock.filter(i => i._nombre.includes(q) || i._cat.includes(q));
   if (!matching.length) { toast('No se encontraron insumos con ese criterio', 'error'); return; }
 
-  // ── Apply the active filter ──────────────────────────────────
+  // ── Apply the active filter (period only) ──────────────────────────────────
   let enPeriodo;
-  // These are only used for velocity calculation when filtroTipo === 'periodo'
   let desdeTs = 0, hastaTs = Date.now();
 
-  if (filtroTipo === 'periodo') {
-    const desdeStr = document.getElementById('met-desde')?.value || '';
-    const hastaStr = document.getElementById('met-hasta')?.value || '';
-    desdeTs = desdeStr ? new Date(desdeStr).getTime() : 0;
-    hastaTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
-    enPeriodo = matching.filter(i => {
-      if (i._finTs)    return i._finTs    >= desdeTs && i._finTs    <= hastaTs;
-      if (i._inicioTs) return i._inicioTs >= desdeTs && i._inicioTs <= hastaTs;
-      return i._fechaTs >= desdeTs && i._fechaTs <= hastaTs;
-    });
-  } else if (filtroTipo === 'llegada') {
-    const desdeStr = document.getElementById('met-llegada-desde')?.value || '';
-    const hastaStr = document.getElementById('met-llegada-hasta')?.value || '';
-    if (!desdeStr && !hastaStr) { toast('Ingresá al menos una fecha de llegada para filtrar', 'error'); return; }
-    const dTs = desdeStr ? new Date(desdeStr).getTime() : 0;
-    const hTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
-    enPeriodo = matching.filter(i => i._fechaTs >= dTs && i._fechaTs <= hTs);
-    // For velocity calculation, use the span of finConsumo dates
-    const consumidosAll = enPeriodo.filter(i => i._finTs);
-    if (consumidosAll.length) {
-      desdeTs = Math.min(...consumidosAll.map(i => i._finTs));
-      hastaTs = Math.max(...consumidosAll.map(i => i._finTs));
-    }
-  } else if (filtroTipo === 'lote') {
-    const loteVal = (document.getElementById('met-lote-val')?.value || '').trim().toLowerCase();
-    if (!loteVal) { toast('Ingresá un número de lote para buscar', 'error'); return; }
-    enPeriodo = matching.filter(i => i._lot.includes(loteVal));
-    desdeTs = 0; hastaTs = Date.now();
-  } else {
-    enPeriodo = matching;
-  }
+  const desdeStr = document.getElementById('met-desde')?.value || '';
+  const hastaStr = document.getElementById('met-hasta')?.value || '';
+  desdeTs = desdeStr ? new Date(desdeStr).getTime() : 0;
+  hastaTs = hastaStr ? new Date(hastaStr + 'T23:59:59').getTime() : Date.now();
+  enPeriodo = matching.filter(i => {
+    if (i._finTs)    return i._finTs    >= desdeTs && i._finTs    <= hastaTs;
+    if (i._inicioTs) return i._inicioTs >= desdeTs && i._inicioTs <= hastaTs;
+    return i._fechaTs >= desdeTs && i._fechaTs <= hastaTs;
+  });
+
+  const filtroTipo = 'periodo'; // simplified: only period filter exists now
 
   _metCurrentItems = enPeriodo;
 
@@ -6105,10 +6064,10 @@ function calcularMetricas() {
   // keeping a placeholder null here so renderMetricas receives the key
   const fechaAgotamiento = null;
 
-  // Tasa de uso
-  // Tasa de uso: consumidas / llegadas en el período filtrado
-  const llegadasEnPeriodo = enPeriodo.length;
-  const tasaUso = llegadasEnPeriodo > 0 ? Math.round((consumidos.length / llegadasEnPeriodo) * 100) : 0;
+  // Tasa de uso: consumidas en el período / (consumidas en el período + stock disponible actualmente)
+  // "Total disponible" = lo que se usó en el período + lo que queda en stock ahora
+  const totalDisponible = consumidos.length + stockActual;
+  const tasaUso = totalDisponible > 0 ? Math.round((consumidos.length / totalDisponible) * 100) : 0;
 
   // Rendimiento
   const conRend = enPeriodo.filter(i => i.rendimiento && !isNaN(parseFloat(i.rendimiento)));
@@ -6127,16 +6086,8 @@ function calcularMetricas() {
     matchingItems: matching,
     periodDesdeTs: desdeTs,
     periodHastaTs: hastaTs,
-    desdeStr: filtroTipo === 'llegada'
-      ? (document.getElementById('met-llegada-desde')?.value || '')
-      : filtroTipo === 'lote'
-        ? (document.getElementById('met-lote-val')?.value || '')
-        : (document.getElementById('met-desde')?.value || ''),
-    hastaStr: filtroTipo === 'llegada'
-      ? (document.getElementById('met-llegada-hasta')?.value || '')
-      : filtroTipo === 'lote'
-        ? ''
-        : (document.getElementById('met-hasta')?.value || '')
+    desdeStr: document.getElementById('met-desde')?.value || '',
+    hastaStr: document.getElementById('met-hasta')?.value || ''
   });
 }
 
@@ -6274,20 +6225,30 @@ function renderMetricas(d) {
       </defs>
       <text x="70" y="72" text-anchor="middle" font-family="IBM Plex Mono" font-size="18" font-weight="600" fill="var(--text)">${tasa}%</text>
     </svg>
-    <div style="font-size:12px;color:var(--mid);margin-top:6px">de las unidades que llegaron en este período fueron consumidas</div>`;
+    <div style="font-size:12px;color:var(--mid);margin-top:6px">de las unidades disponibles fueron consumidas en el período</div>`;
 
   // Lotes tbody
   const tbody = document.getElementById('met-lotes-tbody');
   if (d.consumidos.length || d.enUso.length) {
     const rows = [...d.consumidos, ...d.enUso].sort((a,b) => (a._finTs||a._inicioTs||0) - (b._finTs||b._inicioTs||0));
-    tbody.innerHTML = rows.map(i => {
+    // Store rows on window for recalculation
+    window._metLotesRows = rows;
+    window._metExcluidos = window._metExcluidos || {};
+    tbody.innerHTML = rows.map((i, idx) => {
       const durDias = i._finTs && i._inicioTs ? countWorkingDays(i._inicioTs, i._finTs) : null;
+      const excluido = !!window._metExcluidos[idx];
       const pctDur = durDias && d.durProm ? Math.min(100, Math.round((durDias/d.durProm)*100)) : 40;
       const barColor = i._estado === 'baja' ? 'var(--green,#2ecc71)' : 'var(--amber)';
       const estadoBadge = i._estado === 'baja'
         ? `<span style="background:var(--surface2);color:var(--mid);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace">Consumido</span>`
         : `<span style="background:rgba(230,168,23,.12);color:var(--amber);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace">En uso</span>`;
-      return `<tr>
+      const rowOpacity = excluido ? 'opacity:.4;' : '';
+      return `<tr style="${rowOpacity}transition:opacity .2s" id="met-lote-row-${idx}">
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border2);text-align:center">
+          <input type="checkbox" ${excluido?'checked':''} title="Excluir del cálculo de duración"
+            onchange="metToggleExcluir(${idx})"
+            style="width:14px;height:14px;cursor:pointer;accent-color:var(--accent)">
+        </td>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border2);font-family:'IBM Plex Mono',monospace;font-size:11px">${htmlEsc(i.lote)}</td>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border2);font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mid)">${htmlEsc(fmtFecha(i.fecha))}</td>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border2);font-family:'IBM Plex Mono',monospace;font-size:11px">${htmlEsc(fmtFecha(i.inicioConsumo)) || '—'}</td>
@@ -6307,7 +6268,7 @@ function renderMetricas(d) {
       </tr>`;
     }).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--dim)">Sin consumos en el período.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--dim)">Sin consumos en el período.</td></tr>';
   }
 
   // Rendimiento promedio
@@ -6356,7 +6317,7 @@ function renderMetricas(d) {
     insights.push({ type:'teal', icon:'💡', title:`Rendimiento promedio: ${d.rendProm}`, desc:`Promedio calculado sobre ${d.rendCount} unidades con dato registrado. Rango: ${d.rendMin} – ${d.rendMax}.` });
   }
   if (d.tasaUso < 70 && d.totalHistorial > 3) {
-    insights.push({ type:'amber', icon:'⚠️', title:'Baja tasa de uso', desc:`Solo el ${d.tasaUso}% de las unidades que llegaron en el período fueron consumidas. Verificar si hay unidades vencidas sin dar de baja o si se está comprando en exceso.` });
+    insights.push({ type:'amber', icon:'⚠️', title:'Baja tasa de uso', desc:`Solo el ${d.tasaUso}% de las unidades disponibles fueron consumidas en el período (consumidas / consumidas + stock actual). Verificar si hay acumulación de stock o unidades vencidas sin dar de baja.` });
   }
 
   const typeColors = { red:'var(--red)', amber:'var(--amber)', green:'var(--green,#2ecc71)', blue:'var(--blue)', teal:'#00c9a7' };
