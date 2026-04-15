@@ -1427,7 +1427,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -6097,30 +6097,61 @@ function fmtFechaMetricas(d) {
 }
 
 function calcVelocidad() {
-  // Velocidad = (unidades_consumidas / dias_reales_del_periodo) * 30.44
-  // Usa dias reales del periodo seleccionado — sin ajustes por meses calendario
+  // Velocidad = (unidades_consumidas / dias_activos) * 30.44
+  // Dias activos = dias totales del periodo - dias de gaps >= 14 dias entre consumos consecutivos
+  const GAP_UMBRAL_DIAS = 14;
   const tsOf = i => i._finTs || i._inicioTs || 0;
   const items = window._metMatchingItems || [];
 
-  // Todos los items con timestamp valido
   const consumed = items.filter(i => (i._estado === 'baja' || i.inicioConsumo) && tsOf(i) > 0);
-  if (!consumed.length) return 0;
+  if (!consumed.length) { window._metGapsInfo = null; return 0; }
 
-  // Rango del periodo: usar bounds almacenados si existen, sino derivar de los datos
   let desdeTs = window._metPeriodDesdeTs || 0;
   let hastaTs = window._metPeriodHastaTs || 0;
-
   if (!desdeTs || !hastaTs) {
-    // Fallback: derivar span de los items consumidos
     desdeTs = Math.min(...consumed.map(i => tsOf(i)));
     hastaTs = Math.max(...consumed.map(i => tsOf(i)));
   }
 
-  const diasReales = Math.max(1, (hastaTs - desdeTs) / 86400000);
-  const consumidosEnPeriodo = consumed.filter(i => tsOf(i) >= desdeTs && tsOf(i) <= hastaTs);
-  if (!consumidosEnPeriodo.length) return 0;
+  const consumidosEnPeriodo = consumed
+    .filter(i => tsOf(i) >= desdeTs && tsOf(i) <= hastaTs)
+    .sort((a, b) => tsOf(a) - tsOf(b));
+  if (!consumidosEnPeriodo.length) { window._metGapsInfo = null; return 0; }
 
-  return (consumidosEnPeriodo.length / diasReales) * 30.44;
+  // Detectar gaps entre fin de una unidad e inicio de la siguiente
+  const byInicio = consumed
+    .filter(i => i._inicioTs && tsOf(i) >= desdeTs && tsOf(i) <= hastaTs)
+    .sort((a, b) => a._inicioTs - b._inicioTs);
+
+  const gaps = [];
+  let diasGap = 0;
+  for (let i = 0; i < byInicio.length - 1; i++) {
+    const finActual = byInicio[i]._finTs || byInicio[i]._inicioTs;
+    const inicioSig = byInicio[i + 1]._inicioTs;
+    const gapDias   = (inicioSig - finActual) / 86400000;
+    if (gapDias >= GAP_UMBRAL_DIAS) {
+      const desde = new Date(finActual);
+      const hasta = new Date(inicioSig);
+      gaps.push({
+        desde: desde.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
+        hasta: hasta.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
+        dias:  Math.round(gapDias)
+      });
+      diasGap += gapDias;
+    }
+  }
+
+  const diasTotales = Math.max(1, (hastaTs - desdeTs) / 86400000);
+  const diasActivos = Math.max(1, diasTotales - diasGap);
+
+  window._metGapsInfo = gaps.length ? {
+    gaps,
+    diasTotales: Math.round(diasTotales),
+    diasGap:     Math.round(diasGap),
+    diasActivos: Math.round(diasActivos)
+  } : null;
+
+  return (consumidosEnPeriodo.length / diasActivos) * 30.44;
 }
 
 function renderProyeccion() {
@@ -6135,11 +6166,17 @@ function renderProyeccion() {
     : '';
   const el = document.getElementById('met-proyeccion');
   if (!el) return;
+  const gapsInfo = window._metGapsInfo;
+  const gapNota = gapsInfo
+    ? `<div style="font-size:10px;color:var(--amber);padding:4px 10px 4px;margin-top:-4px;background:var(--amber-l);border-radius:5px;border:1px solid rgba(230,168,23,.3)">
+        ⚠️ Se excluyeron ${gapsInfo.diasGap} días sin actividad (${gapsInfo.gaps.length} gap${gapsInfo.gaps.length>1?'s':''}) — velocidad sobre ${gapsInfo.diasActivos} días activos de ${gapsInfo.diasTotales}
+       </div>`
+    : `<div style="font-size:10px;color:var(--dim);padding:2px 12px 4px;margin-top:-6px">↳ basado en días activos del período seleccionado</div>`;
   el.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:8px">
       ${metRow('Stock actual', `${stockA} unidades`)}
       ${metRow('Consumo promedio', `${velStr} u/mes`)}
-      <div style="font-size:10px;color:var(--dim);padding:2px 12px 4px;margin-top:-6px">↳ basado en días reales del período seleccionado</div>
+      ${gapNota}
       ${metRow('Tiempo estimado', fechaAgo ? `~${Math.round((fechaAgo - hoyP) / (30.44*86400000))} meses` : 'N/D', colorAgo || 'amber')}
       ${metRow('Agotamiento estimado', fechaAgo ? fmtFechaMetricas(fechaAgo) : 'N/D', 'amber')}
     </div>`;
@@ -6180,7 +6217,7 @@ function renderMetricas(d) {
     </div>`;
   document.getElementById('met-kpis').innerHTML =
     kpiCard('var(--teal,#00c9a7)', 'Unidades consumidas', d.consumidos.length, '32px', 'var(--teal,#00c9a7)', 'en el período seleccionado') +
-    kpiCard('var(--accent)',        'Velocidad de consumo', vel,               '32px', 'var(--accent)',        'unidades / mes (promedio)') +
+    kpiCard('var(--accent)',        'Velocidad de consumo', vel,               '32px', 'var(--accent)',        window._metGapsInfo ? `u/mes · ${window._metGapsInfo.diasActivos}d activos` : 'unidades / mes (promedio)') +
     kpiCard('var(--amber)',         'Duración promedio',    d.durProm ?? '—',  '32px', 'var(--amber)',         d.durProm ? 'días hábiles por unidad' : 'sin datos suficientes') +
     kpiCard(agotColor,              'Stock estimado hasta', agot,              '24px', agotColor,              `${d.stockActual} unidades · vel. ${vel} u/mes`);
 
@@ -6309,6 +6346,11 @@ function renderMetricas(d) {
   }
   if (d.consumidos.length === 0) {
     insights.push({ type:'blue', icon:'ℹ️', title:'Sin consumos en el período', desc:'No se registraron bajas en el período seleccionado. Si el insumo está en uso, verificar que se hayan completado las fechas de inicio y fin de consumo.' });
+  }
+  const gapsData = window._metGapsInfo;
+  if (gapsData) {
+    const gapDetalle = gapsData.gaps.map(g => `${g.desde} → ${g.hasta} (${g.dias} días)`).join(', ');
+    insights.push({ type:'amber', icon:'⏸️', title:`${gapsData.gaps.length} período${gapsData.gaps.length>1?'s':''} sin actividad detectado${gapsData.gaps.length>1?'s':''}`, desc:`Se excluyeron ${gapsData.diasGap} días sin actividad del cálculo de velocidad. La velocidad se calculó sobre ${gapsData.diasActivos} días activos (de ${gapsData.diasTotales} totales). Gaps: ${gapDetalle}.` });
   }
   if (d.durProm) {
     insights.push({ type:'blue', icon:'📈', title:`Duración promedio: ${d.durProm} días`, desc:`Cada unidad dura en promedio ${d.durProm} días desde que se abre hasta que se termina. Útil para planificar cuándo abrir la siguiente unidad.` });
