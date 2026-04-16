@@ -6138,17 +6138,22 @@ function calcVelocidad() {
     .sort((a, b) => tsOf(a) - tsOf(b));
   if (!consumidosEnPeriodo.length) { window._metGapsInfo = null; return 0; }
 
-  // Detectar gaps entre fin de una unidad e inicio de la siguiente
-  const byInicio = consumed
-    .filter(i => i._inicioTs && tsOf(i) >= desdeTs && tsOf(i) <= hastaTs)
+  // Detectar gaps entre fin de una unidad y el inicio de la siguiente.
+  // Usar consumidosEnPeriodo (ya filtrado al período) con inicio y fin definidos.
+  // Filtrar también que _inicioTs esté dentro del período para no arrastrar
+  // unidades de otros años cuyos _finTs cayeron dentro del rango por casualidad.
+  const byInicio = consumidosEnPeriodo
+    .filter(i => i._inicioTs && i._finTs && i._inicioTs >= desdeTs && i._inicioTs <= hastaTs)
     .sort((a, b) => a._inicioTs - b._inicioTs);
 
   const gaps = [];
   let diasGap = 0;
   for (let i = 0; i < byInicio.length - 1; i++) {
-    const finActual = byInicio[i]._finTs || byInicio[i]._inicioTs;
+    const finActual = byInicio[i]._finTs;
     const inicioSig = byInicio[i + 1]._inicioTs;
-    const gapDias   = (inicioSig - finActual) / 86400000;
+    // Unidades solapadas no generan gap
+    if (inicioSig <= finActual) continue;
+    const gapDias = (inicioSig - finActual) / 86400000;
     if (gapDias >= GAP_UMBRAL_DIAS) {
       const desde = new Date(finActual);
       const hasta = new Date(inicioSig);
