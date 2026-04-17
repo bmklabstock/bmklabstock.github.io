@@ -1110,7 +1110,20 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 
     <!-- Lotes table -->
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title">Detalle por lote consumido</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:0">Detalle por lote</div>
+        <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:3px">
+          <button id="met-tab-consumidos" onclick="metSwitchTab('consumidos')"
+            style="padding:5px 14px;border-radius:5px;border:none;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff">
+            Consumidos
+          </button>
+          <button id="met-tab-disponibles" onclick="metSwitchTab('disponibles')"
+            style="padding:5px 14px;border-radius:5px;border:none;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;background:transparent;color:var(--mid)">
+            Disponibles
+          </button>
+        </div>
+      </div>
+      <div id="met-panel-consumidos">
       <div style="overflow-x:auto;max-height:480px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent">
         <table style="width:100%;border-collapse:collapse;font-size:12px" id="met-lotes-table">
           <thead>
@@ -1136,6 +1149,26 @@ mark{background:transparent;color:var(--accent);font-weight:700}
         </div>
         <div style="display:flex;align-items:center;gap:24px" id="met-rend-body"></div>
       </div>
+      </div><!-- /met-panel-consumidos -->
+
+      <div id="met-panel-disponibles" style="display:none">
+      <div style="overflow-x:auto;max-height:480px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Lote</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">F. llegada</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Vencimiento</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Inicio uso</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Rendimiento</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Observaciones</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mid);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--surface);z-index:1">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="met-disponibles-tbody"></tbody>
+        </table>
+      </div>
+      </div><!-- /met-panel-disponibles -->
     </div>
 
     <!-- Insights -->
@@ -6123,6 +6156,60 @@ function fmtFechaMetricas(d) {
   return d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
 }
 
+function metSwitchTab(tab) {
+  const btnC = document.getElementById('met-tab-consumidos');
+  const btnD = document.getElementById('met-tab-disponibles');
+  const panC = document.getElementById('met-panel-consumidos');
+  const panD = document.getElementById('met-panel-disponibles');
+  if (!btnC || !btnD) return;
+  if (tab === 'consumidos') {
+    btnC.style.background = 'var(--accent)'; btnC.style.color = '#fff'; btnC.style.fontWeight = '600';
+    btnD.style.background = 'transparent';   btnD.style.color = 'var(--mid)'; btnD.style.fontWeight = '500';
+    panC.style.display = 'block';
+    panD.style.display = 'none';
+  } else {
+    btnD.style.background = 'var(--accent)'; btnD.style.color = '#fff'; btnD.style.fontWeight = '600';
+    btnC.style.background = 'transparent';   btnC.style.color = 'var(--mid)'; btnC.style.fontWeight = '500';
+    panC.style.display = 'none';
+    panD.style.display = 'block';
+    metRenderDisponibles();
+  }
+}
+
+function metRenderDisponibles() {
+  const tbody = document.getElementById('met-disponibles-tbody');
+  if (!tbody) return;
+  const matching = window._metMatchingItems || [];
+  const esEnStock = i => !i.finConsumo.trim() && (!i.inicioConsumo.trim() || i._inicioTs > 0);
+  const disponibles = matching.filter(esEnStock)
+    .sort((a, b) => (a._fechaTs || 0) - (b._fechaTs || 0));
+
+  if (!disponibles.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--dim)">Sin unidades disponibles en stock.</td></tr>';
+    return;
+  }
+
+  const thStyle = 'padding:8px 10px;border-bottom:1px solid var(--border2);font-family:\'IBM Plex Mono\',monospace;font-size:11px';
+  tbody.innerHTML = disponibles.map(i => {
+    const estado = i._estado === 'vencido'
+      ? `<span style="background:var(--red-l);color:var(--red);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace">Vencido</span>`
+      : i._estado === 'vence'
+      ? `<span style="background:var(--amber-l);color:var(--amber);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace">Por vencer</span>`
+      : i.inicioConsumo
+      ? `<span style="background:rgba(91,142,232,.12);color:var(--blue);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace">En uso</span>`
+      : `<span style="background:var(--accent-l);color:var(--accent);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace">Disponible</span>`;
+    return `<tr>
+      <td style="${thStyle}">${htmlEsc(i.lote)}</td>
+      <td style="${thStyle};color:var(--mid)">${fmtFecha(i.fecha) || '—'}</td>
+      <td style="${thStyle};color:${i._estado==='vencido'?'var(--red)':i._estado==='vence'?'var(--amber)':'var(--mid)'}">${fmtFecha(i.vencimiento) || '—'}</td>
+      <td style="${thStyle}">${fmtFecha(i.inicioConsumo) || '—'}</td>
+      <td style="${thStyle};color:var(--mid)">${htmlEsc(i.rendimiento) || '—'}</td>
+      <td style="${thStyle};color:var(--mid);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${htmlEsc(i.obs||'')}">${htmlEsc(i.obs) || '—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border2)">${estado}</td>
+    </tr>`;
+  }).join('');
+}
+
 function calcVelocidad() {
   // Velocidad = (unidades_consumidas / dias_activos) * 30.44
   // Dias activos = dias totales del periodo - dias de gaps >= 14 dias entre consumos consecutivos
@@ -6229,6 +6316,9 @@ function renderMetricas(d) {
   window._metStockActual    = d.stockActual;
   window._metPeriodDesdeTs  = d.periodDesdeTs || 0;
   window._metPeriodHastaTs  = d.periodHastaTs || Date.now();
+
+  // Reset tab to Consumidos on every new search
+  metSwitchTab('consumidos');
 
   document.getElementById('met-empty').style.display = 'none';
   document.getElementById('met-results').style.display = 'block';
