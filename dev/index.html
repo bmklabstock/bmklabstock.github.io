@@ -6046,7 +6046,14 @@ function calcularMetricas() {
 
   const nombre = matching[0].nombre;
   const catalogo = matching[0].catalogo;
-  const stockActual = matching.filter(i => i._estado !== 'baja').length;
+  // "En stock" = fin de consumo vacío (no cualquier texto) Y
+  // inicio de consumo vacío O con fecha válida (no "NA" ni texto libre)
+  const esEnStock = i => {
+    const finVacio   = !i.finConsumo.trim();
+    const inicioOk   = !i.inicioConsumo.trim() || i._inicioTs > 0;
+    return finVacio && inicioOk;
+  };
+  const stockActual = matching.filter(esEnStock).length;
   const totalHistorial = matching.length;
   const consumidos = enPeriodo.filter(i => i._estado === 'baja');
   const enUso = enPeriodo.filter(i => i.inicioConsumo && !i.finConsumo);
@@ -6138,22 +6145,17 @@ function calcVelocidad() {
     .sort((a, b) => tsOf(a) - tsOf(b));
   if (!consumidosEnPeriodo.length) { window._metGapsInfo = null; return 0; }
 
-  // Detectar gaps entre fin de una unidad y el inicio de la siguiente.
-  // Usar consumidosEnPeriodo (ya filtrado al período) con inicio y fin definidos.
-  // Filtrar también que _inicioTs esté dentro del período para no arrastrar
-  // unidades de otros años cuyos _finTs cayeron dentro del rango por casualidad.
-  const byInicio = consumidosEnPeriodo
-    .filter(i => i._inicioTs && i._finTs && i._inicioTs >= desdeTs && i._inicioTs <= hastaTs)
+  // Detectar gaps entre fin de una unidad e inicio de la siguiente
+  const byInicio = consumed
+    .filter(i => i._inicioTs && tsOf(i) >= desdeTs && tsOf(i) <= hastaTs)
     .sort((a, b) => a._inicioTs - b._inicioTs);
 
   const gaps = [];
   let diasGap = 0;
   for (let i = 0; i < byInicio.length - 1; i++) {
-    const finActual = byInicio[i]._finTs;
+    const finActual = byInicio[i]._finTs || byInicio[i]._inicioTs;
     const inicioSig = byInicio[i + 1]._inicioTs;
-    // Unidades solapadas no generan gap
-    if (inicioSig <= finActual) continue;
-    const gapDias = (inicioSig - finActual) / 86400000;
+    const gapDias   = (inicioSig - finActual) / 86400000;
     if (gapDias >= GAP_UMBRAL_DIAS) {
       const desde = new Date(finActual);
       const hasta = new Date(inicioSig);
