@@ -6145,23 +6145,37 @@ function calcVelocidad() {
     .sort((a, b) => tsOf(a) - tsOf(b));
   if (!consumidosEnPeriodo.length) { window._metGapsInfo = null; return 0; }
 
-  // Detectar gaps entre fin de una unidad e inicio de la siguiente
-  const byInicio = consumed
-    .filter(i => i._inicioTs && tsOf(i) >= desdeTs && tsOf(i) <= hastaTs)
-    .sort((a, b) => a._inicioTs - b._inicioTs);
+  // Detectar gaps: días en que NINGUNA unidad estuvo en uso dentro del período.
+  // Usamos cobertura de intervalos: fusionar todos los rangos [inicioTs, finTs]
+  // y encontrar los huecos entre ellos. Esto maneja correctamente unidades solapadas.
+  // Solo incluir unidades con inicio Y fin definidos (fechas válidas).
+  const intervalos = consumed
+    .filter(i => i._inicioTs > 0 && i._finTs > 0)
+    .map(i => [Math.max(i._inicioTs, desdeTs), Math.min(i._finTs, hastaTs)])
+    .filter(([a, b]) => a < b) // descartar intervalos que quedan fuera del período
+    .sort((a, b) => a[0] - b[0]);
 
+  // Fusionar intervalos solapados o contiguos (tolerancia de 1 día = 86400000ms)
+  const merged = [];
+  for (const [ini, fin] of intervalos) {
+    if (!merged.length || ini > merged[merged.length - 1][1] + 86400000) {
+      merged.push([ini, fin]);
+    } else {
+      merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], fin);
+    }
+  }
+
+  // Los gaps son los huecos entre intervalos fusionados
   const gaps = [];
   let diasGap = 0;
-  for (let i = 0; i < byInicio.length - 1; i++) {
-    const finActual = byInicio[i]._finTs || byInicio[i]._inicioTs;
-    const inicioSig = byInicio[i + 1]._inicioTs;
-    const gapDias   = (inicioSig - finActual) / 86400000;
+  for (let i = 0; i < merged.length - 1; i++) {
+    const finBloque   = merged[i][1];
+    const inicioSig   = merged[i + 1][0];
+    const gapDias     = (inicioSig - finBloque) / 86400000;
     if (gapDias >= GAP_UMBRAL_DIAS) {
-      const desde = new Date(finActual);
-      const hasta = new Date(inicioSig);
       gaps.push({
-        desde: desde.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
-        hasta: hasta.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
+        desde: new Date(finBloque).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
+        hasta: new Date(inicioSig).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
         dias:  Math.round(gapDias)
       });
       diasGap += gapDias;
