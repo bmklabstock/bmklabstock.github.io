@@ -1445,26 +1445,6 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 
 <!-- MODAL USUARIO -->
 <div class="um-overlay" id="um-overlay" style="display:none" onclick="if(event.target===this)cerrarModalUsuario()">
-
-<!-- MODAL LOTE ADVERTIDO -->
-<div id="modal-lote-adv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:700;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:2px solid var(--red);border-radius:14px;padding:28px 32px;max-width:480px;width:100%;box-shadow:var(--shadow-lg)">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-      <span style="font-size:28px">⚠️</span>
-      <div>
-        <div style="font-size:16px;font-weight:700;color:var(--red)">Lote con advertencia</div>
-        <div style="font-size:12px;color:var(--mid);margin-top:2px">Este lote fue reportado con problemas por el proveedor</div>
-      </div>
-    </div>
-    <div id="modal-adv-detalle" style="background:var(--red-l);border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;line-height:1.7;margin-bottom:18px;color:var(--text)"></div>
-    <div style="font-size:13px;color:var(--mid);margin-bottom:8px">Para confirmar el alta de todas formas, escribí <strong style="color:var(--red);font-family:'IBM Plex Mono',monospace">CONFIRMAR</strong> en el campo:</div>
-    <input type="text" id="modal-adv-confirm-input" placeholder='Escribí CONFIRMAR' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--text);background:var(--surface);outline:none;margin-bottom:16px" oninput="checkAdvConfirm()">
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cancelarAltaAdv()">Cancelar alta</button>
-      <button class="btn btn-danger" id="btn-adv-confirmar" disabled onclick="ejecutarAltaAdv()">⚠️ Confirmar de todas formas</button>
-    </div>
-  </div>
-</div>
   <div class="um-box">
     <div class="um-title" id="um-title">Agregar usuario</div>
     <div class="um-grid">
@@ -1493,6 +1473,26 @@ mark{background:transparent;color:var(--accent);font-weight:700}
   </div>
 </div>
 
+<!-- MODAL LOTE ADVERTIDO -->
+<div id="modal-lote-adv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:700;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2px solid var(--red);border-radius:14px;padding:28px 32px;max-width:480px;width:100%;box-shadow:var(--shadow-lg)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span style="font-size:28px">⚠️</span>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--red)">Lote con advertencia</div>
+        <div style="font-size:12px;color:var(--mid);margin-top:2px">Este lote fue reportado con problemas por el proveedor</div>
+      </div>
+    </div>
+    <div id="modal-adv-detalle" style="background:var(--red-l);border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;line-height:1.7;margin-bottom:18px;color:var(--text)"></div>
+    <div style="font-size:13px;color:var(--mid);margin-bottom:8px">Para confirmar el alta de todas formas, escribí <strong style="color:var(--red);font-family:'IBM Plex Mono',monospace">CONFIRMAR</strong> en el campo:</div>
+    <input type="text" id="modal-adv-confirm-input" placeholder='Escribí CONFIRMAR' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--text);background:var(--surface);outline:none;margin-bottom:16px" oninput="checkAdvConfirm()">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cancelarAltaAdv()">Cancelar alta</button>
+      <button class="btn btn-danger" id="btn-adv-confirmar" disabled onclick="ejecutarAltaAdv()">⚠️ Confirmar de todas formas</button>
+    </div>
+  </div>
+</div>
+
 </main>
 </div>
 </div>
@@ -1506,7 +1506,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
+const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -1802,7 +1802,7 @@ async function afterLogin() {
     document.getElementById('loading-overlay').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     applyRoleUI(currentUserRole);
-    cargarConfig(); // cargar parámetros guardados
+    await cargarConfig(); // cargar parámetros guardados
     setAltaFechaHoy();
     await syncFromSheets();
 
