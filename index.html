@@ -496,6 +496,9 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 .dot-active{background:#2ecc71}.dot-inactive{background:var(--dim)}
 /* User modal */
 .um-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-adv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-adv-overlay.show{display:flex}
+.modal-adv-box{background:var(--surface);border:2px solid var(--red);border-radius:14px;padding:28px 32px;max-width:480px;width:100%;box-shadow:var(--shadow-lg)}
 .um-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px;max-width:440px;width:100%;box-shadow:var(--shadow-lg)}
 .um-title{font-size:16px;font-weight:600;margin-bottom:20px;color:var(--text)}
 .um-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -1417,7 +1420,30 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       </div>
       <div id="cfg-last-saved" style="font-size:11px;color:var(--dim);margin-top:8px"></div>
     </div>
-  </div>
+
+    <!-- Lotes con advertencia -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">⚠️ Lotes con advertencia</div>
+      <p style="font-size:12px;color:var(--mid);margin-bottom:14px;line-height:1.6">
+        Lotes informados por el proveedor con fallas. Al dar de alta un insumo que coincida por catálogo y lote, el sistema mostrará una advertencia con doble confirmación.
+      </p>
+      <div id="lotes-adv-list" style="margin-bottom:14px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:8px;align-items:end">
+        <div class="field">
+          <label>N° Catálogo</label>
+          <input type="text" id="adv-catalogo" placeholder="Ej: 8.01.0048">
+        </div>
+        <div class="field">
+          <label>N° Lote</label>
+          <input type="text" id="adv-lote" placeholder="Ej: 2409037">
+        </div>
+        <div class="field">
+          <label>Motivo</label>
+          <input type="text" id="adv-motivo" placeholder="Ej: Falla informada por proveedor">
+        </div>
+        <button class="btn btn-primary" onclick="agregarLoteAdvertido()" style="align-self:end">Agregar</button>
+      </div>
+    </div>
 </div>
 
 <!-- MODAL USUARIO -->
@@ -1455,6 +1481,26 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 </div>
 
 <div class="toast-container" id="toast-container"></div>
+
+<!-- MODAL LOTE ADVERTIDO — al nivel del body para que position:fixed funcione siempre -->
+<div id="modal-lote-adv" class="modal-adv-overlay">
+  <div class="modal-adv-box">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span style="font-size:28px">⚠️</span>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--red)">Lote con advertencia</div>
+        <div style="font-size:12px;color:var(--mid);margin-top:2px">Este lote fue reportado con problemas por el proveedor</div>
+      </div>
+    </div>
+    <div id="modal-adv-detalle" style="background:var(--red-l);border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;line-height:1.7;margin-bottom:18px;color:var(--text)"></div>
+    <div style="font-size:13px;color:var(--mid);margin-bottom:8px">Para confirmar el alta de todas formas, escribí <strong style="color:var(--red);font-family:'IBM Plex Mono',monospace">CONFIRMAR</strong> en el campo:</div>
+    <input type="text" id="modal-adv-confirm-input" placeholder="Escribí CONFIRMAR" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--text);background:var(--surface);outline:none;margin-bottom:16px" oninput="checkAdvConfirm()">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cancelarAltaAdv()">Cancelar alta</button>
+      <button class="btn btn-danger" id="btn-adv-confirmar" disabled onclick="ejecutarAltaAdv()">⚠️ Confirmar de todas formas</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -1511,6 +1557,8 @@ let stockLookup   = [];       // igual que stock pero sin hojas excluidas (2022,
 let sheetNames    = [];       // ['2024','2025',...]
 const LOOKUP_EXCLUDE_YEARS = ['2022','2023']; // hojas con datos corruptos, excluidas del lookup
 let CFG = { diasVence: 60, diasStockBajo: 60, umbralStockBajo: 2, diasVencDash: 90 };
+// Lotes con advertencia: [{catalogo, lote, motivo}]
+let lotesAdvertidos = [];
 let nextLocalId   = 1;
 let bajaSelectedId = null;
 let consultaFilter = 'todos';
@@ -1757,7 +1805,7 @@ async function afterLogin() {
     document.getElementById('loading-overlay').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     applyRoleUI(currentUserRole);
-    cargarConfig(); // cargar parámetros guardados
+    await cargarConfig(); // cargar parámetros guardados
     setAltaFechaHoy();
     await syncFromSheets();
 
@@ -1841,7 +1889,7 @@ async function syncFromSheets() {
           _estado = _vencTs === 0 ? 'disponible' : _vencTs < now ? 'vencido' : _vencTs < soon ? 'vence' : 'disponible';
         }
         const _nombre = (row[COL.nombre] || '').toLowerCase();
-        const _cat    = (row[COL.catalogo] || '').toLowerCase();
+        const _cat    = (row[COL.catalogo] || '').replace(/^'+/, '').toLowerCase();
         const _lot    = (row[COL.lote] || '').toLowerCase();
         stock.push({
           id: nextLocalId++,
@@ -1849,7 +1897,7 @@ async function syncFromSheets() {
           rowIndex: rowIdx + 1, // 1-based, accounting for header
           fecha:          _fecha,
           nombre:         row[COL.nombre]       || '',
-          catalogo:       row[COL.catalogo]     || '',
+          catalogo:       (row[COL.catalogo] || '').replace(/^'+/, ''),
           lote:           row[COL.lote]         || '',
           vencimiento:    _venc,
           inicioConsumo:  row[COL.inicioConsumo]|| '',
@@ -2843,6 +2891,34 @@ async function confirmarAlta() {
     toast('Completá todos los campos obligatorios','error'); return;
   }
 
+  // Verificar si el lote/catálogo tiene advertencia
+  const advMatch = lotesAdvertidos.find(a =>
+    a.catalogo.trim().toLowerCase() === catalogo.toLowerCase() &&
+    a.lote.trim().toLowerCase() === lote.toLowerCase()
+  );
+  if (advMatch) {
+    // Mostrar modal de doble confirmación
+    const detalle = document.getElementById('modal-adv-detalle');
+    detalle.innerHTML = `
+      <div style="margin-bottom:6px"><strong>Catálogo:</strong> <span style="font-family:'IBM Plex Mono',monospace">${htmlEsc(advMatch.catalogo)}</span></div>
+      <div style="margin-bottom:6px"><strong>Lote:</strong> <span style="font-family:'IBM Plex Mono',monospace">${htmlEsc(advMatch.lote)}</span></div>
+      <div><strong>Motivo:</strong> ${htmlEsc(advMatch.motivo || 'Sin descripción')}</div>
+    `;
+    const inp = document.getElementById('modal-adv-confirm-input');
+    inp.value = '';
+    document.getElementById('btn-adv-confirmar').disabled = true;
+    const modal = document.getElementById('modal-lote-adv');
+    modal.classList.add('show');
+    inp.focus();
+    // Guardar datos para ejecutar luego
+    window._altaPendiente = { nombre, catalogo, lote, cantidad, fecha, venc, sinVenc, temp };
+    return;
+  }
+
+  await _ejecutarAlta(nombre, catalogo, lote, cantidad, fecha, venc, sinVenc, temp);
+}
+
+async function _ejecutarAlta(nombre, catalogo, lote, cantidad, fecha, venc, sinVenc, temp) {
   const año = fecha.substring(0,4);
   const btn = document.getElementById('btn-confirmar-alta');
   btn.disabled = true;
@@ -2852,11 +2928,12 @@ async function confirmarAlta() {
     const esNueva = await ensureSheetExists(año);
 
     // Build rows to append
+    // Prefix catalogo with apostrophe so Sheets never interprets it as a date/number
     const rows = [];
     for (let i=0; i<cantidad; i++) {
       rows.push([
         toSheetDate(fecha),
-        nombre, catalogo,
+        nombre, "'" + catalogo,
         cantidad > 1 ? `${lote} ${getLetter(i)}` : lote,
         sinVenc ? 'NA' : toSheetDate(venc),
         '', '', temp, '', ''
@@ -2885,6 +2962,24 @@ async function confirmarAlta() {
     btn.disabled = false;
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Confirmar alta en Sheets';
   }
+}
+
+function checkAdvConfirm() {
+  const val = document.getElementById('modal-adv-confirm-input').value.trim();
+  document.getElementById('btn-adv-confirmar').disabled = (val !== 'CONFIRMAR');
+}
+
+function cancelarAltaAdv() {
+  document.getElementById('modal-lote-adv').classList.remove('show');
+  window._altaPendiente = null;
+}
+
+async function ejecutarAltaAdv() {
+  const p = window._altaPendiente;
+  if (!p) return;
+  document.getElementById('modal-lote-adv').classList.remove('show');
+  window._altaPendiente = null;
+  await _ejecutarAlta(p.nombre, p.catalogo, p.lote, p.cantidad, p.fecha, p.venc, p.sinVenc, p.temp);
 }
 
 function limpiarAlta() {
@@ -3517,7 +3612,8 @@ async function guardarModificacion() {
     const sheetRow = item.rowIndex;
     // 2022/2023: sin checkbox → datos desde col A. 2024+: datos desde col B
     const writeRange = `${item.sheetName}!B${sheetRow}:K${sheetRow}`;
-    const writeValues = [item.fecha, item.nombre, item.catalogo, item.lote, item.vencimiento,
+    // Prefix catalogo with apostrophe so Sheets never interprets it as a date/number
+    const writeValues = [item.fecha, item.nombre, "'" + item.catalogo, item.lote, item.vencimiento,
          item.inicioConsumo, item.finConsumo, item.tempAlmacen, item.rendimiento, item.obs];
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
@@ -5579,7 +5675,11 @@ async function cargarConfig() {
     });
     const rows = resp.result.values || [];
     for (const [k, v] of rows) {
-      if (k in CFG && !isNaN(+v)) CFG[k] = +v;
+      if (k === 'lotesAdvertidos') {
+        try { lotesAdvertidos = JSON.parse(v) || []; } catch(e) { lotesAdvertidos = []; }
+      } else if (k in CFG && !isNaN(+v)) {
+        CFG[k] = +v;
+      }
     }
   } catch(e) { /* hoja no existe aún → usar defaults */ }
   // Sync inputs
@@ -5587,6 +5687,7 @@ async function cargarConfig() {
     const el = document.getElementById('cfg-' + k.replace(/([A-Z])/g, m => '-' + m.toLowerCase()));
     if (el) el.value = v;
   }
+  renderLotesAdvertidos();
 }
 
 async function guardarConfig() {
@@ -5609,7 +5710,10 @@ async function guardarConfig() {
         resource: { requests: [{ addSheet: { properties: { title: CONFIG_SHEET } } }] }
       });
     }
+    // Write CFG params
     const values = Object.entries(CFG).map(([k,v]) => [k, String(v)]);
+    // Write lotes advertidos as JSON in a special key
+    values.push(['lotesAdvertidos', JSON.stringify(lotesAdvertidos)]);
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `${CONFIG_SHEET}!A1:B${values.length}`,
@@ -5624,6 +5728,51 @@ async function guardarConfig() {
   } catch(e) {
     toast('Error al guardar configuración: ' + e.message, 'error');
   }
+}
+
+// ── Lotes advertidos ──────────────────────────────────────────────
+function renderLotesAdvertidos() {
+  const list = document.getElementById('lotes-adv-list');
+  if (!list) return;
+  if (!lotesAdvertidos.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--dim);padding:8px 0">Sin lotes con advertencia registrados.</div>';
+    return;
+  }
+  list.innerHTML = lotesAdvertidos.map((a, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--red-l);border:1px solid var(--red);border-radius:7px;margin-bottom:6px">
+      <span style="font-size:16px">⚠️</span>
+      <div style="flex:1;font-size:12px;line-height:1.6">
+        <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--red)">${htmlEsc(a.catalogo)}</span>
+        · Lote <span style="font-family:'IBM Plex Mono',monospace;font-weight:600">${htmlEsc(a.lote)}</span>
+        <span style="color:var(--mid)"> — ${htmlEsc(a.motivo || 'Sin motivo')}</span>
+      </div>
+      <button onclick="eliminarLoteAdvertido(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px;padding:2px 6px;border-radius:4px;transition:.15s" title="Eliminar">✕</button>
+    </div>
+  `).join('');
+}
+
+function agregarLoteAdvertido() {
+  const cat    = document.getElementById('adv-catalogo').value.trim();
+  const lote   = document.getElementById('adv-lote').value.trim();
+  const motivo = document.getElementById('adv-motivo').value.trim();
+  if (!cat || !lote) { toast('Catálogo y lote son obligatorios', 'error'); return; }
+  // Check duplicate
+  if (lotesAdvertidos.some(a => a.catalogo.toLowerCase() === cat.toLowerCase() && a.lote.toLowerCase() === lote.toLowerCase())) {
+    toast('Ese catálogo + lote ya está en la lista', 'error'); return;
+  }
+  lotesAdvertidos.push({ catalogo: cat, lote, motivo });
+  document.getElementById('adv-catalogo').value = '';
+  document.getElementById('adv-lote').value = '';
+  document.getElementById('adv-motivo').value = '';
+  renderLotesAdvertidos();
+  guardarConfig();
+}
+
+function eliminarLoteAdvertido(idx) {
+  if (!confirm(`¿Eliminar advertencia para lote "${lotesAdvertidos[idx]?.lote}"?`)) return;
+  lotesAdvertidos.splice(idx, 1);
+  renderLotesAdvertidos();
+  guardarConfig();
 }
 
 // ═══════════════════════════════════════════════════════════════
