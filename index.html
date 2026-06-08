@@ -1889,7 +1889,7 @@ async function syncFromSheets() {
           _estado = _vencTs === 0 ? 'disponible' : _vencTs < now ? 'vencido' : _vencTs < soon ? 'vence' : 'disponible';
         }
         const _nombre = (row[COL.nombre] || '').toLowerCase();
-        const _cat    = (row[COL.catalogo] || '').replace(/^'+/, '').toLowerCase();
+        const _cat    = (row[COL.catalogo] || '').replace(/^'+/, '').trim().toLowerCase();
         const _lot    = (row[COL.lote] || '').toLowerCase();
         stock.push({
           id: nextLocalId++,
@@ -1897,7 +1897,7 @@ async function syncFromSheets() {
           rowIndex: rowIdx + 1, // 1-based, accounting for header
           fecha:          _fecha,
           nombre:         row[COL.nombre]       || '',
-          catalogo:       (row[COL.catalogo] || '').replace(/^'+/, ''),
+          catalogo:       (row[COL.catalogo] || '').replace(/^'+/, '').trim(),
           lote:           row[COL.lote]         || '',
           vencimiento:    _venc,
           inicioConsumo:  row[COL.inicioConsumo]|| '',
