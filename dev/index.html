@@ -5443,10 +5443,26 @@ function lookupInBD(rawCode) {
       if (/^\d{6}$/.test(vencRaw)) extractedVenc = gs1ExpToISO(vencRaw) || '';
     }
 
+    // Salvaguarda: el offset de vencimiento se "aprendió" buscando los dígitos
+    // YYMMDD del ejemplo guardado dentro del código de ese ejemplo — si esa
+    // coincidencia fue casual (el código de este catálogo en realidad NO trae
+    // fecha codificada, como pasa con formatos Thermo Fisher AI91+AI10 solamente),
+    // el offset queda apuntando a dígitos del LOTE, no de una fecha real.
+    // Verificamos con el parser GS1 real: si detecta el mismo catálogo mediante
+    // AI genuinos pero sin AI de vencimiento (15/17), la fecha simplemente no
+    // está codificada en este código puntual — no hay que inventar ninguna.
+    const gs1Check    = parseGS1(rawCode);
+    const gs1CatCheck = extractCatalog(gs1Check);
+    const esMismoProductoGS1 = gs1CatCheck && r.catalogo &&
+      gs1CatCheck.toUpperCase() === r.catalogo.trim().toUpperCase();
+    const gs1TraeFecha = !!(gs1Check.expDate || gs1Check.bestBefore);
+    const vencNoConfiable = esMismoProductoGS1 && !gs1TraeFecha;
+    if (vencNoConfiable) extractedVenc = '';
+
     return {
       record: r,
       extractedLote: extractedLote || r.lote,
-      extractedVenc: extractedVenc || r.vencimiento,
+      extractedVenc: vencNoConfiable ? '' : (extractedVenc || r.vencimiento),
     };
   }
 
