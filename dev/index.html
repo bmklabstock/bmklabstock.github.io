@@ -3623,6 +3623,8 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('mousedown', e => {
   // Don't clear selection if clicking inside an edit modal
   if (e.target.closest('#modal-edicion') || e.target.closest('#modal-edicion-masiva')) return;
+  // Don't clear selection if clicking inside the table header (sort columns, "seleccionar todos")
+  if (e.target.closest('#consulta-thead')) return;
   if (!e.target.closest('#consulta-tbody') && !e.target.closest('.consulta-actions')) {
     getConsultaRows().forEach(r => setRowSelected(r, false));
     consultaLastIdx = null;
