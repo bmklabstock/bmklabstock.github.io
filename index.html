@@ -363,6 +363,33 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 .btn-modificar:hover{background:var(--accent-l);border-color:var(--accent)}
 .btn-eliminar{padding:9px 18px;background:var(--red-l);border:1.5px solid rgba(200,40,40,.3);border-radius:7px;color:var(--red);font-weight:600;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s}
 .btn-eliminar:hover{background:var(--red-l);border-color:var(--red);filter:brightness(1.1)}
+
+/* EDICIÓN INLINE EN TABLA DE CONSULTAS */
+.cell-editable{position:relative}
+.inline-editing{cursor:text;padding:4px 6px !important}
+.inline-edit-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.inline-edit-input{width:100%;min-width:80px;flex:1;padding:4px 6px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;border:1.5px solid var(--accent);border-radius:5px;background:var(--surface);color:var(--text);outline:none}
+.inline-edit-na-label{font-size:10px;color:var(--mid);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer}
+.inline-edit-btns{display:inline-flex;gap:2px;flex-shrink:0}
+.inline-edit-btn{border:none;background:var(--surface2);cursor:pointer;font-size:12px;width:20px;height:20px;border-radius:4px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inline-edit-btn.ok{color:#2a7d3f}
+.inline-edit-btn.cancel{color:var(--red)}
+.inline-edit-btn:hover{filter:brightness(.92)}
+.row-edit-btn{border:none;background:none;cursor:pointer;font-size:13px;padding:3px 7px;border-radius:5px;opacity:.5;transition:.15s}
+.row-edit-btn:hover{opacity:1;background:var(--accent-l)}
+
+/* MODAL EDICIÓN MASIVA */
+.modal-box-masiva{max-width:600px}
+.mf-hint{font-size:12px;color:var(--mid);margin-bottom:16px;line-height:1.5}
+.modal-field-masiva{border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface2);transition:.15s}
+.modal-field-masiva.active{border-color:var(--accent);background:var(--accent-l)}
+.mf-toggle{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;margin-bottom:0;text-transform:none;letter-spacing:0}
+.mf-toggle input{accent-color:var(--accent);flex-shrink:0}
+.modal-field-masiva.active .mf-toggle{margin-bottom:8px}
+.mf-input-row{display:none;align-items:center;gap:8px;flex-wrap:wrap}
+.modal-field-masiva.active .mf-input-row{display:flex}
+.mf-input-row input,.mf-input-row select{padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:var(--surface);color:var(--text);outline:none}
+.mf-na-label{font-size:11px;color:var(--mid);display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer}
 /* Modal edición */
 /* HISTORY */
 .history-list{display:flex;flex-direction:column}
@@ -898,6 +925,10 @@ mark{background:transparent;color:var(--accent);font-weight:700}
       <div class="field">
         <label>Fecha de inicio de uso</label>
         <input type="date" id="baja-inicio">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mid);margin-top:6px;cursor:pointer;font-weight:400;white-space:nowrap;width:fit-content">
+          <input type="checkbox" id="chk-inicio-na" onchange="toggleSinInicio(this)" style="accent-color:var(--accent);flex-shrink:0">
+          Fecha de inicio desconocida
+        </label>
       </div>
       <div class="field">
         <label>Fecha de fin de uso</label>
@@ -964,6 +995,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
     <div class="table-wrap">
       <table class="results-table">
         <thead><tr id="consulta-thead">
+          <th style="width:32px"><input type="checkbox" id="consulta-check-all" onchange="toggleSelectAllConsulta(this)" title="Seleccionar / deseleccionar todos los visibles"></th>
           <th onclick="sortConsulta('nombre')" style="cursor:pointer;user-select:none">Insumo <span id="sort-nombre"></span></th>
           <th onclick="sortConsulta('catalogo')" style="cursor:pointer;user-select:none">N° Catálogo <span id="sort-catalogo"></span></th>
           <th>N° Lote</th>
@@ -975,6 +1007,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
           <th onclick="sortConsulta('fin')" style="cursor:pointer;user-select:none">Fin uso <span id="sort-fin"></span></th>
           <th>Rendimiento</th>
           <th>Observaciones</th>
+          <th></th>
         </tr></thead>
         <tbody id="consulta-tbody"></tbody>
       </table>
@@ -1010,7 +1043,12 @@ mark{background:transparent;color:var(--accent);font-weight:700}
         </select>
         <input type="text" class="temp-custom" id="me-temp-custom" placeholder="Ej: -196°C" style="margin-top:6px">
       </div>
-      <div class="modal-field"><label>Inicio consumo</label><input id="me-inicio" type="date"></div>
+      <div class="modal-field"><label>Inicio consumo</label>
+        <input id="me-inicio" type="date">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-top:4px;font-weight:400;cursor:pointer">
+          <input type="checkbox" id="me-inicio-na" onchange="onModalInicioNAChange()"> Fecha de inicio desconocida
+        </label>
+      </div>
       <div class="modal-field"><label>Fin consumo</label><input id="me-fin" type="date"></div>
       <div class="modal-field"><label>Rendimiento</label><input id="me-rendimiento" type="text" placeholder="Ej: 80%, 32 reacciones…"></div>
       <div class="modal-field" style="grid-column:1/-1"><label>Observaciones</label><input id="me-obs" type="text"></div>
@@ -1030,6 +1068,19 @@ mark{background:transparent;color:var(--accent);font-weight:700}
     <div class="modal-btns" id="modal-btns-editar">
       <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarModificacion()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDICIÓN MASIVA (varios insumos a la vez) -->
+<div class="modal-overlay" id="modal-edicion-masiva" style="display:none" onclick="if(event.target===this)cerrarModalMasiva()">
+  <div class="modal-box modal-box-masiva">
+    <div class="modal-title">✏️ Modificar varios insumos — <span id="modal-masiva-count"></span></div>
+    <div class="mf-hint">Tildá solo los campos que querés cambiar. Los campos sin tildar quedan sin modificar en los insumos seleccionados.</div>
+    <div id="modal-masiva-fields"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="cerrarModalMasiva()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarModificacionMasiva()">Aplicar cambios</button>
     </div>
   </div>
 </div>
@@ -1509,7 +1560,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
+const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -2835,6 +2886,18 @@ function toggleSinVenc(chk) {
   updatePreview();
 }
 
+function toggleSinInicio(chk) {
+  const inicioEl = document.getElementById('baja-inicio');
+  if (chk.checked) {
+    inicioEl.value = '';
+    inicioEl.disabled = true;
+    inicioEl.placeholder = 'NA';
+  } else {
+    inicioEl.disabled = false;
+    inicioEl.placeholder = '';
+  }
+}
+
 document.addEventListener('click', e => {
   ['ac-nombre','ac-catalogo','ac-lote'].forEach(id=>{
     const l=document.getElementById(id);
@@ -3105,6 +3168,9 @@ function selectBaja(id) {
   document.getElementById('baja-selected-tag').innerHTML =
     `<div class="selected-tag">✓ <strong>${item.nombre}</strong> — Lote <span class="mono">${item.lote}</span> — ${yearBadge(getAnio(item))}</div>`;
   document.getElementById('baja-inicio').value = '';
+  document.getElementById('baja-inicio').disabled = false;
+  document.getElementById('baja-inicio').placeholder = '';
+  document.getElementById('chk-inicio-na').checked = false;
   document.getElementById('baja-fin').value = new Date().toISOString().split('T')[0];
   document.getElementById('baja-rendimiento').value = item.rendimiento||'';
   document.getElementById('baja-obs').value = item.obs||'';
@@ -3114,11 +3180,12 @@ function selectBaja(id) {
 
 async function confirmarBaja() {
   if (!bajaSelectedId) { toast('Seleccioná un insumo primero','error'); return; }
+  const inicioNA = document.getElementById('chk-inicio-na').checked;
   const inicio = document.getElementById('baja-inicio').value;
   const fin    = document.getElementById('baja-fin').value;
   const rend   = document.getElementById('baja-rendimiento').value;
   const obs    = document.getElementById('baja-obs').value;
-  if (!inicio) { toast('La fecha de inicio es obligatoria','error'); return; }
+  if (!inicioNA && !inicio) { toast('La fecha de inicio es obligatoria (o tildá "Fecha de inicio desconocida")','error'); return; }
 
   const btn = document.getElementById('btn-confirmar-baja');
   btn.disabled = true;
@@ -3132,7 +3199,7 @@ async function confirmarBaja() {
     const _prevFin    = item.finConsumo;
     const _prevRend   = item.rendimiento;
     const _prevObs    = item.obs;
-    item.inicioConsumo = toSheetDate(inicio);
+    item.inicioConsumo = inicioNA ? 'NA' : toSheetDate(inicio);
     item.finConsumo    = toSheetDate(fin);
     item.rendimiento   = rend;
     item.obs           = obs;
@@ -3383,7 +3450,7 @@ function renderConsulta() {
   const tbody=document.getElementById('consulta-tbody');
   const count=document.getElementById('consulta-count');
   if(!items.length) {
-    tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--dim);padding:32px">No se encontraron insumos</td></tr>';
+    tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--dim);padding:32px">No se encontraron insumos</td></tr>';
     count.textContent=''; return;
   }
   // Pagination
@@ -3394,17 +3461,24 @@ function renderConsulta() {
 
   tbody.innerHTML=pageItems.map(i=>{
     const e=i._estado||getEstado(i), rc=e==='baja'?'row-baja':'row-disponible';
+    const checked = consultaSelected.has(i.id) ? 'checked' : '';
     return `<tr class="${rc}" data-id="${i.id}">
-      <td>${htmlEsc(i.nombre)}</td><td><span class="mono">${htmlEsc(i.catalogo)}</span></td>
-      <td><span class="lote-badge">${htmlEsc(i.lote)}</span></td>
-      <td>${fmtFecha(i.fecha)}</td><td>${fmtFecha(i.vencimiento)}</td>
-      <td>${tempBadge(htmlEsc(i.tempAlmacen))}</td><td>${estadoBadge(i)}</td>
-      <td style="font-size:11px;color:var(--mid)">${i.inicioConsumo ? fmtFecha(i.inicioConsumo) : '—'}</td>
-      <td style="font-size:11px;color:var(--mid)">${i.finConsumo ? fmtFecha(i.finConsumo) : '—'}</td>
-      <td style="font-size:11px;color:var(--mid)">${htmlEsc(i.rendimiento)||'—'}</td>
-      <td style="font-size:11px;color:var(--mid);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${htmlEsc(i.obs||'')}">${htmlEsc(i.obs)||'—'}</td>
+      <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" class="consulta-row-check" ${checked} onchange="onConsultaCheckChange(this,${i.id})"></td>
+      <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'nombre')">${htmlEsc(i.nombre)}</td>
+      <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'catalogo')"><span class="mono">${htmlEsc(i.catalogo)}</span></td>
+      <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'lote')"><span class="lote-badge">${htmlEsc(i.lote)}</span></td>
+      <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'fecha')">${fmtFecha(i.fecha)}</td>
+      <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'vencimiento')">${fmtFecha(i.vencimiento)}</td>
+      <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'tempAlmacen')">${tempBadge(htmlEsc(i.tempAlmacen))}</td>
+      <td>${estadoBadge(i)}</td>
+      <td class="cell-editable" title="Doble click para editar" style="font-size:11px;color:var(--mid)" ondblclick="startInlineEdit(event,${i.id},'inicioConsumo')">${i.inicioConsumo ? fmtFecha(i.inicioConsumo) : '—'}</td>
+      <td class="cell-editable" title="Doble click para editar" style="font-size:11px;color:var(--mid)" ondblclick="startInlineEdit(event,${i.id},'finConsumo')">${i.finConsumo ? fmtFecha(i.finConsumo) : '—'}</td>
+      <td class="cell-editable" title="Doble click para editar" style="font-size:11px;color:var(--mid)" ondblclick="startInlineEdit(event,${i.id},'rendimiento')">${htmlEsc(i.rendimiento)||'—'}</td>
+      <td class="cell-editable" title="Doble click para editar" style="font-size:11px;color:var(--mid);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" ondblclick="startInlineEdit(event,${i.id},'obs')">${htmlEsc(i.obs)||'—'}</td>
+      <td style="white-space:nowrap"><button class="row-edit-btn" title="Editar insumo" onclick="event.stopPropagation();editarFila(${i.id})">✏️</button></td>
     </tr>`;
   }).join('');
+  updateSelectAllCheckboxState();
 
   const start = consultaPage * CONSULTA_PAGE_SIZE + 1;
   const end   = Math.min((consultaPage + 1) * CONSULTA_PAGE_SIZE, consultaTotalItems);
@@ -3450,16 +3524,46 @@ function setRowSelected(tr, val) {
   const id = parseInt(tr.dataset.id);
   if (val) { consultaSelected.add(id);    tr.classList.add('selected-row'); }
   else     { consultaSelected.delete(id); tr.classList.remove('selected-row'); }
+  const cb = tr.querySelector('.consulta-row-check');
+  if (cb) cb.checked = val;
+}
+
+function onConsultaCheckChange(cb, id) {
+  const tr = cb.closest('tr[data-id]');
+  if (!tr) return;
+  setRowSelected(tr, cb.checked);
+  const rows = getConsultaRows();
+  consultaLastIdx = rows.indexOf(tr);
+  updateConsultaActions();
+}
+
+function toggleSelectAllConsulta(cb) {
+  getConsultaRows().forEach(tr => setRowSelected(tr, cb.checked));
+  consultaLastIdx = null;
+  updateConsultaActions();
+}
+
+function updateSelectAllCheckboxState() {
+  const master = document.getElementById('consulta-check-all');
+  if (!master) return;
+  const rows = getConsultaRows();
+  if (!rows.length) { master.checked = false; master.indeterminate = false; return; }
+  const selCount = rows.filter(tr => consultaSelected.has(parseInt(tr.dataset.id))).length;
+  master.checked = selCount === rows.length;
+  master.indeterminate = selCount > 0 && selCount < rows.length;
 }
 
 function updateConsultaActions() {
   const n = consultaSelected.size;
   const bar = document.getElementById('consulta-actions');
   const lbl = document.getElementById('consulta-sel-count');
+  updateSelectAllCheckboxState();
   if (n === 0) { bar.classList.remove('show'); return; }
   bar.classList.add('show');
   lbl.textContent = `${n} insumo${n>1?'s':''} seleccionado${n>1?'s':''}`;
-  document.querySelector('.btn-modificar').style.display = n === 1 ? '' : 'none';
+  const btnMod = document.querySelector('.btn-modificar');
+  btnMod.style.display = '';
+  btnMod.textContent = n === 1 ? '✏️ Modificar' : `✏️ Modificar ${n} insumos`;
 }
 
 // Attach Excel-like mousedown on the table body
@@ -3469,6 +3573,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Track mousedown position to distinguish click vs drag (for text selection)
   let _mouseDownX = 0, _mouseDownY = 0, _mouseDownTimer = null;
   tbody.addEventListener('mousedown', e => {
+    if (e.detail > 1) return; // ignore dblclick (handled by cell inline-edit)
+    if (e.target.closest('.inline-editing') || e.target.closest('.row-edit-btn') || e.target.closest('.consulta-row-check')) return;
     const tr = e.target.closest('tr[data-id]');
     if (!tr) return;
     // Allow shift/ctrl+click to work immediately with preventDefault
@@ -3493,6 +3599,8 @@ document.addEventListener('DOMContentLoaded', () => {
     _mouseDownY = e.clientY;
   });
   tbody.addEventListener('mouseup', e => {
+    if (e.detail > 1) return; // ignore dblclick (handled by cell inline-edit)
+    if (e.target.closest('.inline-editing') || e.target.closest('.row-edit-btn') || e.target.closest('.consulta-row-check')) return;
     const tr = e.target.closest('tr[data-id]');
     if (!tr) return;
     if (e.shiftKey || e.ctrlKey || e.metaKey) return; // already handled above
@@ -3513,8 +3621,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Click outside table deselects all
 document.addEventListener('mousedown', e => {
-  // Don't clear selection if clicking inside the edit modal
-  if (e.target.closest('#modal-edicion')) return;
+  // Don't clear selection if clicking inside an edit modal
+  if (e.target.closest('#modal-edicion') || e.target.closest('#modal-edicion-masiva')) return;
+  // Don't clear selection if clicking inside the table header (sort columns, "seleccionar todos")
+  if (e.target.closest('#consulta-thead')) return;
   if (!e.target.closest('#consulta-tbody') && !e.target.closest('.consulta-actions')) {
     getConsultaRows().forEach(r => setRowSelected(r, false));
     consultaLastIdx = null;
@@ -3523,6 +3633,13 @@ document.addEventListener('mousedown', e => {
 });
 
 function abrirModalModificar() {
+  const n = consultaSelected.size;
+  if (n === 0) return;
+  if (n === 1) abrirModalModificarUnico();
+  else abrirModalModificarMasiva();
+}
+
+function abrirModalModificarUnico() {
   if (consultaSelected.size !== 1) return;
   const id = [...consultaSelected][0];
   const i = stock.find(x => x.id === id);
@@ -3548,11 +3665,157 @@ function abrirModalModificar() {
   } else {
     meTempSel.value = 'otra'; meTempCus.classList.add('show'); meTempCus.value = i.tempAlmacen;
   }
-  document.getElementById('me-inicio').value = toInput(i.inicioConsumo);
+  const isInicioNA = !i.inicioConsumo || i.inicioConsumo.toUpperCase()==='NA';
+  document.getElementById('me-inicio').value = isInicioNA ? '' : toInput(i.inicioConsumo);
+  document.getElementById('me-inicio-na').checked = isInicioNA;
+  document.getElementById('me-inicio').disabled = isInicioNA;
   document.getElementById('me-fin').value = toInput(i.finConsumo);
   document.getElementById('me-rendimiento').value = i.rendimiento || '';
   document.getElementById('me-obs').value = i.obs || '';
   document.getElementById('modal-edicion').style.display = 'flex';
+}
+
+function editarFila(id) {
+  getConsultaRows().forEach(r => setRowSelected(r, false));
+  const tr = document.querySelector(`#consulta-tbody tr[data-id="${id}"]`);
+  if (tr) setRowSelected(tr, true);
+  consultaLastIdx = null;
+  updateConsultaActions();
+  abrirModalModificarUnico();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EDICIÓN INLINE (doble click en celda de la tabla de Consultas)
+// ═══════════════════════════════════════════════════════════════
+const INLINE_DATE_FIELDS = ['fecha','vencimiento','inicioConsumo','finConsumo'];
+const INLINE_NA_FIELDS   = ['vencimiento','inicioConsumo']; // admiten "NA"
+const INLINE_REQUIRED    = ['nombre','catalogo','lote','fecha']; // no pueden quedar vacíos
+let _inlineEditState = null; // {td, html, id, field}
+
+function sheetDateToInput(str) {
+  if (!str || str.toUpperCase() === 'NA' || str === '—') return '';
+  if (str.includes('/')) { const [d,m,y]=str.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  return str;
+}
+
+function startInlineEdit(ev, id, field) {
+  if (_inlineEditState) return; // ya hay una celda en edición — ignorar
+  ev.stopPropagation();
+  const td = ev.currentTarget;
+  const item = stock.find(x => x.id === id);
+  if (!item) return;
+  _inlineEditState = { td, html: td.innerHTML, id, field };
+  td.classList.add('inline-editing');
+  td.classList.remove('cell-editable');
+
+  const isDateField = INLINE_DATE_FIELDS.includes(field);
+  const allowsNA = INLINE_NA_FIELDS.includes(field);
+  const rawVal = (item[field] || '').toString();
+  const isNA = allowsNA && rawVal.toUpperCase() === 'NA';
+
+  let html = '<div class="inline-edit-wrap">';
+  if (isDateField) {
+    const dateVal = isNA ? '' : sheetDateToInput(rawVal);
+    html += `<input type="date" class="inline-edit-input" value="${dateVal}" ${isNA ? 'disabled' : ''}>`;
+    if (allowsNA) {
+      html += `<label class="inline-edit-na-label"><input type="checkbox" class="inline-edit-na-cb" ${isNA ? 'checked' : ''} onclick="toggleInlineNA(this)"> NA</label>`;
+    }
+  } else {
+    html += `<input type="text" class="inline-edit-input" value="${htmlEsc(rawVal)}">`;
+  }
+  html += `<div class="inline-edit-btns">
+      <button type="button" class="inline-edit-btn ok" title="Guardar" onmousedown="event.preventDefault()" onclick="commitInlineEdit()">✓</button>
+      <button type="button" class="inline-edit-btn cancel" title="Cancelar" onmousedown="event.preventDefault()" onclick="cancelInlineEdit()">✕</button>
+    </div></div>`;
+  td.innerHTML = html;
+
+  const inp = td.querySelector('.inline-edit-input');
+  inp.focus();
+  if (inp.select) inp.select();
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commitInlineEdit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancelInlineEdit(); }
+  });
+  inp.addEventListener('blur', () => {
+    // Si el foco se va sin pasar por los botones (que usan preventDefault en mousedown), cancelar
+    setTimeout(() => { if (_inlineEditState && _inlineEditState.td === td) cancelInlineEdit(); }, 0);
+  });
+}
+
+function toggleInlineNA(cb) {
+  const td = cb.closest('td');
+  const dateInp = td.querySelector('input[type="date"]');
+  dateInp.disabled = cb.checked;
+  if (cb.checked) dateInp.value = '';
+}
+
+function cancelInlineEdit() {
+  if (!_inlineEditState) return;
+  const { td, html } = _inlineEditState;
+  td.innerHTML = html;
+  td.classList.remove('inline-editing');
+  td.classList.add('cell-editable');
+  _inlineEditState = null;
+}
+
+async function commitInlineEdit() {
+  if (!_inlineEditState) return;
+  const { td, id, field } = _inlineEditState;
+  const item = stock.find(x => x.id === id);
+  if (!item) { cancelInlineEdit(); return; }
+
+  const isDateField = INLINE_DATE_FIELDS.includes(field);
+  let newVal;
+  if (isDateField) {
+    const naCb = td.querySelector('.inline-edit-na-cb');
+    if (naCb && naCb.checked) {
+      newVal = 'NA';
+    } else {
+      const dateInp = td.querySelector('input[type="date"]');
+      newVal = toSheetDate(dateInp.value); // '' si quedó vacío
+    }
+  } else {
+    const inp = td.querySelector('.inline-edit-input');
+    newVal = inp.value.trim();
+  }
+
+  if (INLINE_REQUIRED.includes(field) && !newVal) {
+    toast('Este campo no puede quedar vacío', 'error');
+    return;
+  }
+
+  const current = (item[field] || '').toString();
+  if (current === newVal) { cancelInlineEdit(); return; }
+
+  td.innerHTML = '<span style="color:var(--dim);font-size:11px">Guardando…</span>';
+  const _itemAntes = Object.assign({}, item);
+  try {
+    await verifyRowIntegrity(_itemAntes);
+    item[field] = newVal;
+    const sheetRow = item.rowIndex;
+    const writeRange = `${item.sheetName}!B${sheetRow}:K${sheetRow}`;
+    const writeValues = [item.fecha, item.nombre, "'" + item.catalogo, item.lote, item.vencimiento,
+         item.inicioConsumo, item.finConsumo, item.tempAlmacen, item.rendimiento, item.obs];
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: writeRange,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [writeValues] }
+    });
+    const diff = diffSnapshot(_itemAntes, item);
+    toast('✓ Campo actualizado', 'success');
+    await writeLog('Modificación', item, '', diff);
+    _inlineEditState = null;
+    consultaSelected.clear();
+    updateConsultaActions();
+    await syncFromSheets();
+  } catch(e) {
+    item[field] = _itemAntes[field]; // rollback en memoria
+    _inlineEditState = null;
+    const msg = e.result?.error?.message || e.message || String(e);
+    if (msg.startsWith('⚠️ Desincronización')) { alert(msg); await syncFromSheets(); }
+    else { toast('Error al guardar: ' + msg, 'error'); await syncFromSheets(); }
+  }
 }
 
 function cerrarModal() {
@@ -3561,6 +3824,12 @@ function cerrarModal() {
 function onModalVencNAChange() {
   const cb = document.getElementById('me-venc-na');
   const inp = document.getElementById('me-venc');
+  inp.disabled = cb.checked;
+  if (cb.checked) inp.value = '';
+}
+function onModalInicioNAChange() {
+  const cb = document.getElementById('me-inicio-na');
+  const inp = document.getElementById('me-inicio');
   inp.disabled = cb.checked;
   if (cb.checked) inp.value = '';
 }
@@ -3586,7 +3855,7 @@ async function guardarModificacion() {
     tempAlmacen:   document.getElementById('me-temp').value === 'otra'
                      ? (document.getElementById('me-temp-custom').value.trim() || 'Otra')
                      : document.getElementById('me-temp').value,
-    inicioConsumo: toSheetDate(document.getElementById('me-inicio').value),
+    inicioConsumo: document.getElementById('me-inicio-na').checked ? 'NA' : toSheetDate(document.getElementById('me-inicio').value),
     finConsumo:    toSheetDate(document.getElementById('me-fin').value),
     rendimiento:   document.getElementById('me-rendimiento').value.trim(),
     obs:           document.getElementById('me-obs').value.trim(),
@@ -3632,6 +3901,183 @@ async function guardarModificacion() {
     const msg = e.result?.error?.message || e.message || String(e);
     if (msg.startsWith('⚠️ Desincronización')) { alert(msg); await syncFromSheets(); }
     else toast('Error al guardar: ' + msg, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EDICIÓN MASIVA (modificar varios insumos seleccionados a la vez)
+// ═══════════════════════════════════════════════════════════════
+const BULK_FIELDS = [
+  { key:'nombre',        label:'Nombre',           type:'text' },
+  { key:'catalogo',      label:'N° Catálogo',      type:'text' },
+  { key:'lote',          label:'N° Lote',          type:'text' },
+  { key:'fecha',         label:'Fecha llegada',    type:'date' },
+  { key:'vencimiento',   label:'Vencimiento',      type:'date', na:true },
+  { key:'tempAlmacen',   label:'Temperatura',      type:'temp' },
+  { key:'inicioConsumo', label:'Inicio consumo',   type:'date', na:true },
+  { key:'finConsumo',    label:'Fin consumo',      type:'date' },
+  { key:'rendimiento',   label:'Rendimiento',      type:'text' },
+  { key:'obs',           label:'Observaciones',    type:'text' },
+];
+const TEMPS_MASIVA = ['15°C a 30°C','2°C a 8°C','-30°C a -10°C','-25°C a -15°C','-80°C'];
+
+function abrirModalModificarMasiva() {
+  const n = consultaSelected.size;
+  if (n < 2) return;
+  document.getElementById('modal-masiva-count').textContent = `${n} insumos seleccionados`;
+  renderModalMasivaFields();
+  document.getElementById('modal-edicion-masiva').style.display = 'flex';
+}
+
+function renderModalMasivaFields() {
+  const cont = document.getElementById('modal-masiva-fields');
+  cont.innerHTML = BULK_FIELDS.map(f => {
+    let inputHtml;
+    if (f.type === 'date') {
+      inputHtml = `<input type="date" id="mf-val-${f.key}" disabled>`;
+      if (f.na) {
+        inputHtml += `<label class="mf-na-label"><input type="checkbox" id="mf-na-${f.key}" disabled onchange="onMfNaToggle('${f.key}')"> NA / Desconocido</label>`;
+      }
+    } else if (f.type === 'temp') {
+      inputHtml = `<select id="mf-val-${f.key}" disabled onchange="onMfTempSelChange('${f.key}')">` +
+        TEMPS_MASIVA.map(t => `<option value="${htmlEsc(t)}">${htmlEsc(t)}</option>`).join('') +
+        `<option value="otra">Otra…</option></select>` +
+        `<input type="text" id="mf-val-${f.key}-custom" class="temp-custom" placeholder="Ej: -196°C" disabled>`;
+    } else {
+      inputHtml = `<input type="text" id="mf-val-${f.key}" disabled placeholder="Nuevo valor para todos">`;
+    }
+    return `<div class="modal-field-masiva" id="mf-row-${f.key}">
+      <label class="mf-toggle"><input type="checkbox" id="mf-on-${f.key}" onchange="onMfToggle('${f.key}')"> ${f.label}</label>
+      <div class="mf-input-row">${inputHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function onMfToggle(key) {
+  const on = document.getElementById(`mf-on-${key}`).checked;
+  const row = document.getElementById(`mf-row-${key}`);
+  row.classList.toggle('active', on);
+  row.querySelectorAll('.mf-input-row input, .mf-input-row select').forEach(el => {
+    el.disabled = !on;
+  });
+  // Si el campo tiene checkbox "NA" y está tildado, el input de fecha debe seguir deshabilitado
+  const naCb = document.getElementById(`mf-na-${key}`);
+  const valEl = document.getElementById(`mf-val-${key}`);
+  if (on && naCb && naCb.checked && valEl) valEl.disabled = true;
+  // Si es un selector de temperatura que no está en "Otra…", el input custom sigue deshabilitado
+  if (on && valEl && valEl.tagName === 'SELECT') {
+    const cus = document.getElementById(`mf-val-${key}-custom`);
+    if (cus && valEl.value !== 'otra') cus.disabled = true;
+  }
+  if (on) {
+    const firstInput = row.querySelector('.mf-input-row input:not(:disabled), .mf-input-row select:not(:disabled)');
+    if (firstInput) firstInput.focus();
+  }
+}
+
+function onMfNaToggle(key) {
+  const naCb = document.getElementById(`mf-na-${key}`);
+  const dateInp = document.getElementById(`mf-val-${key}`);
+  dateInp.disabled = naCb.checked;
+  if (naCb.checked) dateInp.value = '';
+}
+
+function onMfTempSelChange(key) {
+  const sel = document.getElementById(`mf-val-${key}`);
+  const cus = document.getElementById(`mf-val-${key}-custom`);
+  if (sel.value === 'otra') { cus.classList.add('show'); cus.disabled = false; cus.focus(); }
+  else { cus.classList.remove('show'); cus.disabled = true; }
+}
+
+function cerrarModalMasiva() {
+  document.getElementById('modal-edicion-masiva').style.display = 'none';
+}
+
+async function guardarModificacionMasiva() {
+  const ids = [...consultaSelected];
+  if (ids.length < 2) return;
+
+  // Construir objeto de cambios a partir de los campos tildados
+  const changes = {};
+  for (const f of BULK_FIELDS) {
+    const onCb = document.getElementById(`mf-on-${f.key}`);
+    if (!onCb || !onCb.checked) continue;
+    if (f.type === 'date') {
+      const naCb = f.na ? document.getElementById(`mf-na-${f.key}`) : null;
+      if (naCb && naCb.checked) { changes[f.key] = 'NA'; continue; }
+      const val = document.getElementById(`mf-val-${f.key}`).value;
+      const sheetVal = toSheetDate(val);
+      if (f.key === 'fecha' && !sheetVal) { toast('La fecha de llegada no puede quedar vacía', 'error'); return; }
+      changes[f.key] = sheetVal;
+    } else if (f.type === 'temp') {
+      const sel = document.getElementById(`mf-val-${f.key}`);
+      changes[f.key] = sel.value === 'otra'
+        ? (document.getElementById(`mf-val-${f.key}-custom`).value.trim() || 'Otra')
+        : sel.value;
+    } else {
+      const v = document.getElementById(`mf-val-${f.key}`).value.trim();
+      if ((f.key === 'nombre' || f.key === 'catalogo' || f.key === 'lote') && !v) {
+        toast(`El campo "${f.label}" no puede quedar vacío`, 'error'); return;
+      }
+      changes[f.key] = v;
+    }
+  }
+
+  const changedKeys = Object.keys(changes);
+  if (!changedKeys.length) { toast('Marcá al menos un campo para modificar', 'error'); return; }
+
+  const n = ids.length;
+  const camposTxt = changedKeys.map(k => {
+    const f = BULK_FIELDS.find(x => x.key === k);
+    return `• ${f.label}: ${changes[k] || '(vacío)'}`;
+  }).join('\n');
+  if (!confirm(`¿Aplicar estos cambios a ${n} insumos?
+
+${camposTxt}
+
+Esta acción no se puede deshacer.`)) return;
+
+  cerrarModalMasiva();
+  toast('Sincronizando antes de aplicar…', 'info');
+  try {
+    // Sincronizar primero para evitar rowIndex desactualizados (mismo patrón que confirmarEliminar)
+    await syncFromSheets();
+    const items = ids.map(id => stock.find(x => x.id === id)).filter(Boolean);
+    if (items.length !== ids.length) {
+      toast('Algunos insumos seleccionados ya no existen — sincronizá y reintentá', 'error');
+      consultaSelected.clear();
+      updateConsultaActions();
+      return;
+    }
+    // Verificar TODAS las filas antes de escribir nada
+    await verifyBatchIntegrity(items);
+
+    toast(`Aplicando cambios a ${items.length} insumos…`, 'info');
+    for (const item of items) {
+      const _itemAntes = Object.assign({}, item);
+      Object.assign(item, changes);
+      const sheetRow = item.rowIndex;
+      const writeRange = `${item.sheetName}!B${sheetRow}:K${sheetRow}`;
+      const writeValues = [item.fecha, item.nombre, "'" + item.catalogo, item.lote, item.vencimiento,
+           item.inicioConsumo, item.finConsumo, item.tempAlmacen, item.rendimiento, item.obs];
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: writeRange,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [writeValues] }
+      });
+      const diff = diffSnapshot(_itemAntes, item);
+      await writeLog('Modificación masiva', item, `Edición en lote (${items.length} insumos)`, diff);
+    }
+    toast(`✓ ${items.length} insumos modificados correctamente`, 'success');
+    consultaSelected.clear();
+    updateConsultaActions();
+    await syncFromSheets();
+  } catch(e) {
+    const msg = e.result?.error?.message || e.message || String(e);
+    if (msg.startsWith('⚠️ Desincronización')) { alert(msg); }
+    else toast('Error al guardar cambios masivos: ' + msg, 'error');
+    await syncFromSheets();
   }
 }
 
@@ -5030,10 +5476,26 @@ function lookupInBD(rawCode) {
       if (/^\d{6}$/.test(vencRaw)) extractedVenc = gs1ExpToISO(vencRaw) || '';
     }
 
+    // Salvaguarda: el offset de vencimiento se "aprendió" buscando los dígitos
+    // YYMMDD del ejemplo guardado dentro del código de ese ejemplo — si esa
+    // coincidencia fue casual (el código de este catálogo en realidad NO trae
+    // fecha codificada, como pasa con formatos Thermo Fisher AI91+AI10 solamente),
+    // el offset queda apuntando a dígitos del LOTE, no de una fecha real.
+    // Verificamos con el parser GS1 real: si detecta el mismo catálogo mediante
+    // AI genuinos pero sin AI de vencimiento (15/17), la fecha simplemente no
+    // está codificada en este código puntual — no hay que inventar ninguna.
+    const gs1Check    = parseGS1(rawCode);
+    const gs1CatCheck = extractCatalog(gs1Check);
+    const esMismoProductoGS1 = gs1CatCheck && r.catalogo &&
+      gs1CatCheck.toUpperCase() === r.catalogo.trim().toUpperCase();
+    const gs1TraeFecha = !!(gs1Check.expDate || gs1Check.bestBefore);
+    const vencNoConfiable = esMismoProductoGS1 && !gs1TraeFecha;
+    if (vencNoConfiable) extractedVenc = '';
+
     return {
       record: r,
       extractedLote: extractedLote || r.lote,
-      extractedVenc: extractedVenc || r.vencimiento,
+      extractedVenc: vencNoConfiable ? '' : (extractedVenc || r.vencimiento),
     };
   }
 
