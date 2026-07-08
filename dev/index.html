@@ -365,9 +365,8 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 .btn-eliminar:hover{background:var(--red-l);border-color:var(--red);filter:brightness(1.1)}
 
 /* EDICIÓN INLINE EN TABLA DE CONSULTAS */
-.cell-editable{cursor:text;position:relative}
-.cell-editable:hover{box-shadow:inset 0 0 0 1.5px var(--accent);border-radius:3px}
-.inline-editing{padding:4px 6px !important}
+.cell-editable{position:relative}
+.inline-editing{cursor:text;padding:4px 6px !important}
 .inline-edit-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .inline-edit-input{width:100%;min-width:80px;flex:1;padding:4px 6px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;border:1.5px solid var(--accent);border-radius:5px;background:var(--surface);color:var(--text);outline:none}
 .inline-edit-na-label{font-size:10px;color:var(--mid);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer}
@@ -996,6 +995,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
     <div class="table-wrap">
       <table class="results-table">
         <thead><tr id="consulta-thead">
+          <th style="width:32px"><input type="checkbox" id="consulta-check-all" onchange="toggleSelectAllConsulta(this)" title="Seleccionar / deseleccionar todos los visibles"></th>
           <th onclick="sortConsulta('nombre')" style="cursor:pointer;user-select:none">Insumo <span id="sort-nombre"></span></th>
           <th onclick="sortConsulta('catalogo')" style="cursor:pointer;user-select:none">N° Catálogo <span id="sort-catalogo"></span></th>
           <th>N° Lote</th>
@@ -3450,7 +3450,7 @@ function renderConsulta() {
   const tbody=document.getElementById('consulta-tbody');
   const count=document.getElementById('consulta-count');
   if(!items.length) {
-    tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--dim);padding:32px">No se encontraron insumos</td></tr>';
+    tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--dim);padding:32px">No se encontraron insumos</td></tr>';
     count.textContent=''; return;
   }
   // Pagination
@@ -3461,7 +3461,9 @@ function renderConsulta() {
 
   tbody.innerHTML=pageItems.map(i=>{
     const e=i._estado||getEstado(i), rc=e==='baja'?'row-baja':'row-disponible';
+    const checked = consultaSelected.has(i.id) ? 'checked' : '';
     return `<tr class="${rc}" data-id="${i.id}">
+      <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" class="consulta-row-check" ${checked} onchange="onConsultaCheckChange(this,${i.id})"></td>
       <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'nombre')">${htmlEsc(i.nombre)}</td>
       <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'catalogo')"><span class="mono">${htmlEsc(i.catalogo)}</span></td>
       <td class="cell-editable" title="Doble click para editar" ondblclick="startInlineEdit(event,${i.id},'lote')"><span class="lote-badge">${htmlEsc(i.lote)}</span></td>
@@ -3476,6 +3478,7 @@ function renderConsulta() {
       <td style="white-space:nowrap"><button class="row-edit-btn" title="Editar insumo" onclick="event.stopPropagation();editarFila(${i.id})">✏️</button></td>
     </tr>`;
   }).join('');
+  updateSelectAllCheckboxState();
 
   const start = consultaPage * CONSULTA_PAGE_SIZE + 1;
   const end   = Math.min((consultaPage + 1) * CONSULTA_PAGE_SIZE, consultaTotalItems);
@@ -3521,12 +3524,40 @@ function setRowSelected(tr, val) {
   const id = parseInt(tr.dataset.id);
   if (val) { consultaSelected.add(id);    tr.classList.add('selected-row'); }
   else     { consultaSelected.delete(id); tr.classList.remove('selected-row'); }
+  const cb = tr.querySelector('.consulta-row-check');
+  if (cb) cb.checked = val;
+}
+
+function onConsultaCheckChange(cb, id) {
+  const tr = cb.closest('tr[data-id]');
+  if (!tr) return;
+  setRowSelected(tr, cb.checked);
+  const rows = getConsultaRows();
+  consultaLastIdx = rows.indexOf(tr);
+  updateConsultaActions();
+}
+
+function toggleSelectAllConsulta(cb) {
+  getConsultaRows().forEach(tr => setRowSelected(tr, cb.checked));
+  consultaLastIdx = null;
+  updateConsultaActions();
+}
+
+function updateSelectAllCheckboxState() {
+  const master = document.getElementById('consulta-check-all');
+  if (!master) return;
+  const rows = getConsultaRows();
+  if (!rows.length) { master.checked = false; master.indeterminate = false; return; }
+  const selCount = rows.filter(tr => consultaSelected.has(parseInt(tr.dataset.id))).length;
+  master.checked = selCount === rows.length;
+  master.indeterminate = selCount > 0 && selCount < rows.length;
 }
 
 function updateConsultaActions() {
   const n = consultaSelected.size;
   const bar = document.getElementById('consulta-actions');
   const lbl = document.getElementById('consulta-sel-count');
+  updateSelectAllCheckboxState();
   if (n === 0) { bar.classList.remove('show'); return; }
   bar.classList.add('show');
   lbl.textContent = `${n} insumo${n>1?'s':''} seleccionado${n>1?'s':''}`;
@@ -3543,7 +3574,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let _mouseDownX = 0, _mouseDownY = 0, _mouseDownTimer = null;
   tbody.addEventListener('mousedown', e => {
     if (e.detail > 1) return; // ignore dblclick (handled by cell inline-edit)
-    if (e.target.closest('.inline-editing') || e.target.closest('.row-edit-btn')) return;
+    if (e.target.closest('.inline-editing') || e.target.closest('.row-edit-btn') || e.target.closest('.consulta-row-check')) return;
     const tr = e.target.closest('tr[data-id]');
     if (!tr) return;
     // Allow shift/ctrl+click to work immediately with preventDefault
@@ -3569,7 +3600,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   tbody.addEventListener('mouseup', e => {
     if (e.detail > 1) return; // ignore dblclick (handled by cell inline-edit)
-    if (e.target.closest('.inline-editing') || e.target.closest('.row-edit-btn')) return;
+    if (e.target.closest('.inline-editing') || e.target.closest('.row-edit-btn') || e.target.closest('.consulta-row-check')) return;
     const tr = e.target.closest('tr[data-id]');
     if (!tr) return;
     if (e.shiftKey || e.ctrlKey || e.metaKey) return; // already handled above
