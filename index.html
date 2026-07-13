@@ -1560,7 +1560,7 @@ mark{background:transparent;color:var(--accent);font-weight:700}
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CLIENT_ID   = '1010719643686-t7mbbrm83gjar49odmbth8i5ct1bciof.apps.googleusercontent.com';
-const SHEET_ID    = '17AyvXxZog22nzvFwqbg859PNSUfQINa0C6Z0C_-ehgo';
+const SHEET_ID    = '1Q32_j2Evi9KxpWoJqUHcRDs_xoQEMGUijTS5exgbXIY';
 const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets email';
 const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -2269,6 +2269,32 @@ function getEstado(item) {
   if (diff < 0)  return 'vencido';  // ya venció sin haber sido dado de baja
   if (diff < CFG.diasVence) return 'vence';
   return 'disponible';
+}
+
+// Recalcula los campos "cacheados" (_estado, timestamps, texto en minúscula para
+// búsqueda) de UN insumo después de editarlo en memoria. Permite reflejar una
+// escritura exitosa en Sheets sin tener que volver a traer toda la spreadsheet
+// (misma fórmula usada en syncFromSheets, aplicada a un solo ítem).
+function recomputeItemCache(item) {
+  const _fecha = item.fecha || '';
+  const _venc  = item.vencimiento || '';
+  const _finConsumo = (item.finConsumo || '');
+  item._fechaTs  = _parseFechaTs(_fecha);
+  item._vencTs   = _parseFechaTs(_venc);
+  item._inicioTs = _parseFechaTs(item.inicioConsumo || '');
+  item._finTs    = _parseFechaTs(_finConsumo);
+  if (_finConsumo.trim()) {
+    item._estado = 'baja';
+  } else if (!_venc || _venc.toUpperCase() === 'NA') {
+    item._estado = 'disponible';
+  } else {
+    const now = Date.now();
+    const soon = now + CFG.diasVence*24*60*60*1000;
+    item._estado = item._vencTs === 0 ? 'disponible' : item._vencTs < now ? 'vencido' : item._vencTs < soon ? 'vence' : 'disponible';
+  }
+  item._nombre = (item.nombre || '').toLowerCase();
+  item._cat    = (item.catalogo || '').replace(/^'+/, '').trim().toLowerCase();
+  item._lot    = (item.lote || '').toLowerCase();
 }
 
 function fmtFecha(str) {
@@ -3224,7 +3250,8 @@ async function confirmarBaja() {
     clearBarcode('baja');
     const barcodeInput = document.getElementById('barcode-input-baja');
     if (barcodeInput) { barcodeInput.value = ''; setTimeout(() => barcodeInput.focus(), 100); }
-    await syncFromSheets();
+    recomputeItemCache(item);
+    renderAll();
   } catch(e) {
     console.error(e);
     const msg = e.result?.error?.message || e.message || String(e);
@@ -3475,7 +3502,7 @@ function renderConsulta() {
       <td class="cell-editable" title="Doble click para editar" style="font-size:11px;color:var(--mid)" ondblclick="startInlineEdit(event,${i.id},'finConsumo')">${i.finConsumo ? fmtFecha(i.finConsumo) : '—'}</td>
       <td class="cell-editable" title="Doble click para editar" style="font-size:11px;color:var(--mid)" ondblclick="startInlineEdit(event,${i.id},'rendimiento')">${htmlEsc(i.rendimiento)||'—'}</td>
       <td class="cell-editable" title="Doble click para editar" style="font-size:11px;color:var(--mid);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" ondblclick="startInlineEdit(event,${i.id},'obs')">${htmlEsc(i.obs)||'—'}</td>
-      <td style="white-space:nowrap"><button class="row-edit-btn" title="Editar insumo" onclick="event.stopPropagation();editarFila(${i.id})">✏️</button></td>
+      <td style="white-space:nowrap"><button class="row-edit-btn" title="Editar insumo" onclick="event.stopPropagation();editarFila(${i.id})">✏️</button>${e==='baja' ? `<button class="row-edit-btn" title="Reactivar (volver a disponible)" onclick="event.stopPropagation();revertirBaja(${i.id})">♻️</button>` : ''}</td>
     </tr>`;
   }).join('');
   updateSelectAllCheckboxState();
@@ -3685,6 +3712,59 @@ function editarFila(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// REACTIVAR (revertir una baja hecha por error → vuelve a "disponible")
+// Borra inicio/fin de consumo, rendimiento y observaciones. La temperatura
+// de almacenamiento se mantiene. No toca fecha de llegada, vencimiento,
+// nombre, catálogo ni lote.
+// ═══════════════════════════════════════════════════════════════
+async function revertirBaja(id) {
+  const item = stock.find(x => x.id === id);
+  if (!item) return;
+  if (getEstado(item) !== 'baja') { toast('Este insumo no está dado de baja', 'error'); return; }
+  if (!confirm(`¿Reactivar "${item.nombre}" — lote ${item.lote}?
+
+Se van a borrar su fecha de inicio de consumo, fecha de fin de consumo, rendimiento y observaciones. El insumo va a volver a figurar como disponible.
+
+Esta acción no se puede deshacer.`)) return;
+
+  const _itemAntes = Object.assign({}, item);
+  toast('Reactivando…', 'info');
+  try {
+    await verifyRowIntegrity(_itemAntes);
+    item.inicioConsumo = '';
+    item.finConsumo    = '';
+    item.rendimiento   = '';
+    item.obs           = '';
+    const sheetRow = item.rowIndex;
+    const range = `${item.sheetName}!G${sheetRow}:K${sheetRow}`;
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [['', '', item.tempAlmacen || '', '', '']] }
+    });
+    const diff = diffSnapshot(_itemAntes, item);
+    toast(`✓ "${item.nombre}" reactivado — vuelve a estar disponible`, 'success');
+    await writeLog('Reactivación', item,
+      'Insumo reactivado tras una baja: se borraron inicio/fin de consumo, rendimiento y observaciones',
+      diff);
+    consultaSelected.delete(id);
+    recomputeItemCache(item);
+    updateConsultaActions();
+    renderAll();
+  } catch(e) {
+    // Rollback en memoria si algo falló
+    item.inicioConsumo = _itemAntes.inicioConsumo;
+    item.finConsumo    = _itemAntes.finConsumo;
+    item.rendimiento   = _itemAntes.rendimiento;
+    item.obs           = _itemAntes.obs;
+    const msg = e.result?.error?.message || e.message || String(e);
+    if (msg.startsWith('⚠️ Desincronización')) { alert(msg); await syncFromSheets(); }
+    else toast('Error al reactivar: ' + msg, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EDICIÓN INLINE (doble click en celda de la tabla de Consultas)
 // ═══════════════════════════════════════════════════════════════
 const INLINE_DATE_FIELDS = ['fecha','vencimiento','inicioConsumo','finConsumo'];
@@ -3807,8 +3887,9 @@ async function commitInlineEdit() {
     await writeLog('Modificación', item, '', diff);
     _inlineEditState = null;
     consultaSelected.clear();
+    recomputeItemCache(item);
     updateConsultaActions();
-    await syncFromSheets();
+    renderAll();
   } catch(e) {
     item[field] = _itemAntes[field]; // rollback en memoria
     _inlineEditState = null;
@@ -3895,8 +3976,9 @@ async function guardarModificacion() {
       '',
       estadoAnteriorMod);
     consultaSelected.clear();
+    recomputeItemCache(item);
     updateConsultaActions();
-    await syncFromSheets();
+    renderAll();
   } catch(e) {
     const msg = e.result?.error?.message || e.message || String(e);
     if (msg.startsWith('⚠️ Desincronización')) { alert(msg); await syncFromSheets(); }
@@ -4071,8 +4153,9 @@ Esta acción no se puede deshacer.`)) return;
     }
     toast(`✓ ${items.length} insumos modificados correctamente`, 'success');
     consultaSelected.clear();
+    items.forEach(recomputeItemCache);
     updateConsultaActions();
-    await syncFromSheets();
+    renderAll();
   } catch(e) {
     const msg = e.result?.error?.message || e.message || String(e);
     if (msg.startsWith('⚠️ Desincronización')) { alert(msg); }
@@ -4736,7 +4819,7 @@ async function loadHistorial(item) {
       listEl.innerHTML = '<div style="color:var(--dim);font-size:13px;padding:16px 0">Sin historial registrado para este insumo.</div>';
       return;
     }
-    const icons = { 'Alta': { dot: 'create', emoji: '➕' }, 'Baja': { dot: 'baja', emoji: '📤' }, 'Modificación': { dot: 'modify', emoji: '✏️' }, 'Eliminación': { dot: 'elim', emoji: '🗑️' } };
+    const icons = { 'Alta': { dot: 'create', emoji: '➕' }, 'Baja': { dot: 'baja', emoji: '📤' }, 'Modificación': { dot: 'modify', emoji: '✏️' }, 'Eliminación': { dot: 'elim', emoji: '🗑️' }, 'Reactivación': { dot: 'create', emoji: '♻️' } };
     listEl.innerHTML = matching.map(r => {
       const [ts, usuario, accion, nombre, catalogo, lote, detalle, cambios] = r;
       const style = icons[accion] || { dot: 'history-dot-modify', emoji: '•' };
